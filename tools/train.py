@@ -15,7 +15,7 @@ from mmrotate.utils import register_all_modules
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a detector')
-    parser.add_argument('config', help='train config file path')
+    parser.add_argument('--config', help='train config file path')
     parser.add_argument('--work-dir', help='the dir to save logs and models')
     parser.add_argument(
         '--amp',
@@ -122,4 +122,6 @@ def main():
 
 
 if __name__ == '__main__':
+    from mmrotate.utils import register_all_modules
+    register_all_modules(init_default_scope=True)
     main()

@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -18,14 +19,17 @@ def label_smoothing_focal_loss(pred,
     """
     
     num_classes = pred.size(1)
-    target = F.one_hot(target, num_classes=num_classes + 1).float()
+    # print(target)
+    target = F.one_hot(target.to(torch.int64), num_classes=num_classes + 1).float()
+    # print(target)
     target = target[:, :num_classes]
-    target_smooth = target * (1 - smoothing) + smoothing / num_classes
+    target_smooth = target * (1 - smoothing) + smoothing / (num_classes - 1)
     # print(target_smooth)
     target = target.type_as(pred)
     target_smooth = target_smooth.type_as(pred)
 
     pred_sigmoid = pred.sigmoid()
+    print(pred_sigmoid)
 
     pt = (1 - pred_sigmoid) * target_smooth + pred_sigmoid * (1 - target_smooth)
     focal_weight = (alpha * target + (1 - alpha) *

@@ -1,5 +1,6 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 import unittest
+import torch.nn.functional as F
 
 import torch
 from parameterized import parameterized
@@ -7,6 +8,7 @@ from parameterized import parameterized
 from mmrotate.models.losses import (BCConvexGIoULoss, ConvexGIoULoss, GDLoss,
                                     GDLoss_v1, H2RBoxConsistencyLoss, KFLoss,
                                     RotatedIoULoss, SpatialBorderLoss)
+from mmrotate.models.losses import (LSFocalLoss)
 
 
 class TestGDLoss(unittest.TestCase):
@@ -260,3 +262,58 @@ class TestH2RBoxConsistencyLoss(unittest.TestCase):
         # Test loss forward with avg_factor
         loss = loss_class()(pred, target, weight, avg_factor=10)
         assert isinstance(loss, torch.Tensor)
+
+class TestLSFocalLoss(unittest.TestCase):
+
+    def test_loss_with_reduction_override(self):
+        pred = torch.rand((10, 5))
+        target = torch.rand((10, 5)),
+        weight = None
+
+        with self.assertRaises(AssertionError):
+            # only reduction_override from [None, 'none', 'mean', 'sum']
+            # is not allowed
+            reduction_override = True
+            LSFocalLoss()(
+                pred, target, reduction_override=reduction_override)
+
+    # @parameterized.expand('input_shape',[(10,5), (3,5,40,40)])
+    def test_regression_losses(self, input_shape=(256,9)):
+        smoothing = 0.1
+        pred = torch.rand(input_shape)
+        target = torch.rand(input_shape)
+
+        num_classes = pred.size(1)
+    # print(target)
+        target = F.one_hot(target.to(torch.int64), num_classes=num_classes + 1).float()
+        # print(target)
+        target = target[:, :num_classes]
+        target_smooth = target * (1 - smoothing) + smoothing / (num_classes - 1)
+        # print(target_smooth)
+        target = target.type_as(pred)
+        target_smooth = target_smooth.type_as(pred)
+
+        # Test loss forward
+        loss = LSFocalLoss()(pred, target)
+        self.assertIsInstance(loss, torch.Tensor)
+
+        # Test loss forward with reduction_override
+        loss = LSFocalLoss()(pred, target, reduction_override='mean')
+        self.assertIsInstance(loss, torch.Tensor)
+
+        # Test loss forward with avg_factor
+        loss = LSFocalLoss()(pred, target, avg_factor=10)
+        self.assertIsInstance(loss, torch.Tensor)
+
+        # Test loss forward with avg_factor and reduction
+        for reduction_override in [None, 'none', 'mean']:
+            LSFocalLoss()(
+                pred, target, avg_factor=10, reduction_override=reduction_override)
+            self.assertIsInstance(loss, torch.Tensor)
+
+if __name__ == '__main__':
+    suite = unittest.TestSuite()
+    suite.addTest(TestLSFocalLoss("test_loss_with_reduction_override"))
+    suite.addTest(TestLSFocalLoss("test_regression_losses"))
+    runner = unittest.TextTestRunner()
+    runner.run(suite)

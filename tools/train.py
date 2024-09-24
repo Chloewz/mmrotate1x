@@ -3,6 +3,9 @@ import argparse
 import logging
 import os
 import os.path as osp
+# import torch
+# import numpy as np
+# import random
 
 from mmdet.utils import register_all_modules as register_all_modules_mmdet
 from mmengine.config import Config, DictAction
@@ -11,6 +14,8 @@ from mmengine.registry import RUNNERS
 from mmengine.runner import Runner
 
 from mmrotate.utils import register_all_modules
+# import torch.backends
+# import torch.backends.cudnn
 
 
 def parse_args():
@@ -53,9 +58,16 @@ def parse_args():
     # will pass the `--local-rank` parameter to `tools/train.py` instead
     # of `--local_rank`.
     parser.add_argument('--local_rank', '--local-rank', type=int, default=0)
+    # parser.add_argument(
+    #     '--seed',
+    #     type=int,
+    #     default=None,
+    #     help='random seed'
+    # )
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)
+    
 
     return args
 
@@ -109,8 +121,26 @@ def main():
                                '"auto_scale_lr.enable" or '
                                '"auto_scale_lr.base_batch_size" in your'
                                ' configuration file.')
-
+        
+    # if args.resume_from is not None:
+    #     cfg.resume_from = args.resume_from
+    #     cfg.load_from = args.resume_from
     cfg.resume = args.resume
+    # resume is determined in this priority: resume from > auto_resume
+    # if args.resume == 'auto':
+    #     cfg.resume = True
+    #     cfg.load_from = None
+    # elif args.resume is not None:
+    #     cfg.resume = True
+    #     # cfg.resume_from = args.resume
+    #     cfg.load_from = args.resume
+
+    # seed = args.seed
+    # torch.manual_seed(seed)
+    # torch.cuda.manual_seed_all(seed)
+    # np.random.seed(seed)
+    # random.seed(seed)
+    # torch.backends.cudnn.deterministic=True
 
     # build the runner from config
     if 'runner_type' not in cfg:

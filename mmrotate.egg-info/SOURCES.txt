@@ -20,7 +20,6 @@ mmrotate/datasets/dota.py
 mmrotate/datasets/hrsc.py
 mmrotate/datasets/soda_dota_fix.py
 mmrotate/datasets/sodaa_dota.py
-mmrotate/datasets/sodaa_eval.py
 mmrotate/datasets/transforms/__init__.py
 mmrotate/datasets/transforms/loading.py
 mmrotate/datasets/transforms/transforms.py
@@ -30,6 +29,8 @@ mmrotate/evaluation/functional/mean_ap.py
 mmrotate/evaluation/metrics/__init__.py
 mmrotate/evaluation/metrics/dota_metric.py
 mmrotate/evaluation/metrics/rotated_coco_metric.py
+mmrotate/evaluation/metrics/sodaa_eval.py
+mmrotate/evaluation/metrics/sodaa_metric.py
 mmrotate/models/__init__.py
 mmrotate/models/backbones/__init__.py
 mmrotate/models/backbones/re_resnet.py

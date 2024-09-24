@@ -6,7 +6,6 @@ from typing import List
 from mmengine.dataset import BaseDataset
 
 from mmrotate.registry import DATASETS
-# from .sodaa_eval import SODAAeval
 
 
 @DATASETS.register_module()
@@ -132,5 +131,7 @@ class SODAA_DOTADataset(BaseDataset):
 
         instances = self.get_data_info(idx)['instances']
         return [instance['bbox_label'] for instance in instances]
+    
+
 
 

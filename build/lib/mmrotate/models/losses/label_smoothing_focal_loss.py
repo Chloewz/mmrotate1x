@@ -29,7 +29,7 @@ def label_smoothing_focal_loss(pred,
     target_smooth = target_smooth.type_as(pred)
 
     pred_sigmoid = pred.sigmoid()
-    print(pred_sigmoid)
+    # print(pred_sigmoid)
 
     pt = (1 - pred_sigmoid) * target_smooth + pred_sigmoid * (1 - target_smooth)
     focal_weight = (alpha * target + (1 - alpha) *

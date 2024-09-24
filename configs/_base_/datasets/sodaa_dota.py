@@ -61,7 +61,7 @@ val_dataloader = dict(
         pipeline=val_pipeline))
 test_dataloader = val_dataloader
 
-val_evaluator = dict(type='DOTAMetric', metric='mAP')
+val_evaluator = dict(type='SODAAMetric', metric='mAP')
 test_evaluator = val_evaluator
 
 # inference on test dataset and format the output results

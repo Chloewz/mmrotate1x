@@ -30,6 +30,10 @@ def parse_args():
         '--resume',
         action='store_true',
         help='resume from the latest checkpoint in the work_dir automatically')
+    # parser.add_argument(
+    #     '--resume-from',
+    #     help='the checkpoint file to resume from'
+    # )
     parser.add_argument(
         '--cfg-options',
         nargs='+',

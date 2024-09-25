@@ -14,8 +14,7 @@ from mmengine.registry import RUNNERS
 from mmengine.runner import Runner
 
 from mmrotate.utils import register_all_modules
-# import torch.backends
-# import torch.backends.cudnn
+from mmengine.runner import set_random_seed
 
 
 def parse_args():
@@ -39,6 +38,22 @@ def parse_args():
     #     '--resume-from',
     #     help='the checkpoint file to resume from'
     # )
+    # parser.add_argument(
+    #     '--seed',
+    #     type=int,
+    #     default=None,
+    #     help='random seed'
+    # )
+    # parser.add_argument(
+    #     '--diff-seed',
+    #     action='store_true',
+    #     help='whether to set different seeds for different ranks'
+    # )
+    # parser.add_argument(
+    #     '--deterministic',
+    #     action='store_true',
+    #     help='whether to set determinsitc options for CUDNN backend'
+    # )
     parser.add_argument(
         '--cfg-options',
         nargs='+',
@@ -58,12 +73,7 @@ def parse_args():
     # will pass the `--local-rank` parameter to `tools/train.py` instead
     # of `--local_rank`.
     parser.add_argument('--local_rank', '--local-rank', type=int, default=0)
-    # parser.add_argument(
-    #     '--seed',
-    #     type=int,
-    #     default=None,
-    #     help='random seed'
-    # )
+    
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)
@@ -135,12 +145,9 @@ def main():
     #     # cfg.resume_from = args.resume
     #     cfg.load_from = args.resume
 
-    # seed = args.seed
-    # torch.manual_seed(seed)
-    # torch.cuda.manual_seed_all(seed)
-    # np.random.seed(seed)
-    # random.seed(seed)
-    # torch.backends.cudnn.deterministic=True
+    # set random seed
+    seed = int(42)
+    set_random_seed(seed=seed)
 
     # build the runner from config
     if 'runner_type' not in cfg:

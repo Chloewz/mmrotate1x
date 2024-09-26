@@ -1,5 +1,6 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 from unittest import TestCase
+import unittest
 
 import torch
 from mmengine import Config
@@ -154,3 +155,11 @@ class TestS2AHead(TestCase):
                            'cls loss should be non-zero')
         self.assertGreater(onegt_box_loss.item(), 0,
                            'box loss should be non-zero')
+
+
+if __name__ == '__main__':
+    suite = unittest.TestSuite()
+    suite.addTest(TestS2AHead("setUp"))
+    suite.addTest(TestS2AHead("test_s2a_head_loss"))
+    runner = unittest.TextTestRunner()
+    runner.run(suite)

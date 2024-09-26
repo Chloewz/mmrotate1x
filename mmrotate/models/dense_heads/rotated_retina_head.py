@@ -50,8 +50,11 @@ class RotatedRetinaHead(RetinaHead):
             tuple: loss components.
         """
         # classification loss
+        # print(labels.shape)
         labels = labels.reshape(-1)
+        # print(labels.shape)
         label_weights = label_weights.reshape(-1)
+        # print(cls_score.shape)
         cls_score = cls_score.permute(0, 2, 3,
                                       1).reshape(-1, self.cls_out_channels)
         loss_cls = self.loss_cls(

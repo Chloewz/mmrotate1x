@@ -14,6 +14,7 @@ from mmrotate.structures.bbox import RotatedBoxes
 from ..utils import ORConv2d, RotationInvariantPooling
 from .rotated_retina_head import RotatedRetinaHead
 
+import numpy as np
 
 @MODELS.register_module()
 class S2AHead(RotatedRetinaHead):
@@ -34,6 +35,7 @@ class S2AHead(RotatedRetinaHead):
         Returns:
             list[list[Tensor]]: refined rbboxes of each level of each image.
         """
+        # print(cls_scores[0].shape)
         num_levels = len(cls_scores)
         assert num_levels == len(bbox_preds)
         num_imgs = cls_scores[0].size(0)

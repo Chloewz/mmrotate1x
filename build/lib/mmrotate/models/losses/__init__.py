@@ -9,9 +9,10 @@ from .rotated_iou_loss import RotatedIoULoss
 from .smooth_focal_loss import SmoothFocalLoss
 from .spatial_border_loss import SpatialBorderLoss
 from .label_smoothing_focal_loss import LSFocalLoss
+from .epison_hot_focal_loss import EpisonHotFocalLoss
 
 __all__ = [
     'GDLoss', 'GDLoss_v1', 'KFLoss', 'ConvexGIoULoss', 'BCConvexGIoULoss',
     'SmoothFocalLoss', 'RotatedIoULoss', 'SpatialBorderLoss',
-    'H2RBoxConsistencyLoss', 'H2RBoxV2ConsistencyLoss', 'LSFocalLoss'
+    'H2RBoxConsistencyLoss', 'H2RBoxV2ConsistencyLoss', 'LSFocalLoss', 'EpisonHotFocalLoss'
 ]

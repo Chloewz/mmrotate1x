@@ -13,58 +13,61 @@ from mmrotate.registry import MODELS
 from mmrotate.structures.bbox import RotatedBoxes
 from ..utils import ORConv2d, RotationInvariantPooling
 from .rotated_retina_head import RotatedRetinaHead
+from mmdet.models.layers import SELayer
+from mmdet.structures.bbox import get_box_tensor
+# from mmdet.models.dense_heads import RetinaHead
 
 import numpy as np
 
+# @MODELS.register_module()
+# class S2AHead(RotatedRetinaHead):
+#     r"""An anchor-based head used in `S2A-Net
+#     <https://ieeexplore.ieee.org/document/9377550>`_.
+#     """  # noqa: W605
+
+#     def filter_bboxes(self, cls_scores: List[Tensor],
+#                       bbox_preds: List[Tensor]) -> List[List[Tensor]]:
+#         """This function will be used in S2ANet, whose num_anchors=1.
+
+#         Args:
+#             cls_scores (list[Tensor]): Box scores for each scale level
+#                 Has shape (N, num_classes, H, W)
+#             bbox_preds (list[Tensor]): Box energies / deltas for each scale
+#                 level with shape (N, 5, H, W)
+
+#         Returns:
+#             list[list[Tensor]]: refined rbboxes of each level of each image.
+#         """
+#         # print(cls_scores[0].shape)
+#         num_levels = len(cls_scores)
+#         assert num_levels == len(bbox_preds)
+#         num_imgs = cls_scores[0].size(0)
+#         for i in range(num_levels):
+#             assert num_imgs == cls_scores[i].size(0) == bbox_preds[i].size(0)
+
+#         device = cls_scores[0].device
+#         featmap_sizes = [cls_scores[i].shape[-2:] for i in range(num_levels)]
+#         mlvl_anchors = self.anchor_generator.grid_priors(
+#             featmap_sizes, device=device)
+
+#         bboxes_list = [[] for _ in range(num_imgs)]
+
+#         for lvl in range(num_levels):
+#             bbox_pred = bbox_preds[lvl]
+#             bbox_pred = bbox_pred.permute(0, 2, 3, 1)
+#             bbox_pred = bbox_pred.reshape(num_imgs, -1, 5)
+#             anchors = mlvl_anchors[lvl]
+
+#             for img_id in range(num_imgs):
+#                 bbox_pred_i = bbox_pred[img_id]
+#                 decode_bbox_i = self.bbox_coder.decode(anchors, bbox_pred_i)
+#                 bboxes_list[img_id].append(decode_bbox_i.detach())
+
+#         return bboxes_list
+
+
 @MODELS.register_module()
-class S2AHead(RotatedRetinaHead):
-    r"""An anchor-based head used in `S2A-Net
-    <https://ieeexplore.ieee.org/document/9377550>`_.
-    """  # noqa: W605
-
-    def filter_bboxes(self, cls_scores: List[Tensor],
-                      bbox_preds: List[Tensor]) -> List[List[Tensor]]:
-        """This function will be used in S2ANet, whose num_anchors=1.
-
-        Args:
-            cls_scores (list[Tensor]): Box scores for each scale level
-                Has shape (N, num_classes, H, W)
-            bbox_preds (list[Tensor]): Box energies / deltas for each scale
-                level with shape (N, 5, H, W)
-
-        Returns:
-            list[list[Tensor]]: refined rbboxes of each level of each image.
-        """
-        # print(cls_scores[0].shape)
-        num_levels = len(cls_scores)
-        assert num_levels == len(bbox_preds)
-        num_imgs = cls_scores[0].size(0)
-        for i in range(num_levels):
-            assert num_imgs == cls_scores[i].size(0) == bbox_preds[i].size(0)
-
-        device = cls_scores[0].device
-        featmap_sizes = [cls_scores[i].shape[-2:] for i in range(num_levels)]
-        mlvl_anchors = self.anchor_generator.grid_priors(
-            featmap_sizes, device=device)
-
-        bboxes_list = [[] for _ in range(num_imgs)]
-
-        for lvl in range(num_levels):
-            bbox_pred = bbox_preds[lvl]
-            bbox_pred = bbox_pred.permute(0, 2, 3, 1)
-            bbox_pred = bbox_pred.reshape(num_imgs, -1, 5)
-            anchors = mlvl_anchors[lvl]
-
-            for img_id in range(num_imgs):
-                bbox_pred_i = bbox_pred[img_id]
-                decode_bbox_i = self.bbox_coder.decode(anchors, bbox_pred_i)
-                bboxes_list[img_id].append(decode_bbox_i.detach())
-
-        return bboxes_list
-
-
-@MODELS.register_module()
-class S2ARefineHead(RotatedRetinaHead):
+class EpisonHotRefineHead(RotatedRetinaHead):
     r"""Rotated Anchor-based refine head. It's a part of the Oriented Detection
     Module (ODM), which produces orientation-sensitive features for
     classification and orientation-invariant features for localization.
@@ -98,6 +101,7 @@ class S2ARefineHead(RotatedRetinaHead):
         self.relu = nn.ReLU(inplace=True)
         self.cls_convs = nn.ModuleList()
         self.reg_convs = nn.ModuleList()
+        # self.epison_hot_convs = nn.ModuleList()
         for i in range(self.stacked_convs):
             chn = int(self.feat_channels / 8) if i == 0 else self.feat_channels
             self.cls_convs.append(
@@ -118,14 +122,30 @@ class S2ARefineHead(RotatedRetinaHead):
                     padding=1,
                     conv_cfg=self.conv_cfg,
                     norm_cfg=self.norm_cfg))
+            # self.epison_hot_convs.append(
+            #     ConvModule(
+            #         self.feat_channels,
+            #         self.feat_channels,
+            #         3,
+            #         stride=1,
+            #         padding=1,
+            #         conv_cfg=self.conv_cfg,
+            #         norm_cfg=self.norm_cfg))
         self.retina_cls = nn.Conv2d(
             self.feat_channels,
+            self.num_base_priors * self.cls_out_channels,
+            3,
+            padding=1)
+        # self.epison_hot_conv = SELayer(channels=self.num_base_priors * self.cls_out_channels)
+        self.epison_hot_conv = nn.Conv2d(
+            self.num_base_priors * self.cls_out_channels,
             self.num_base_priors * self.cls_out_channels,
             3,
             padding=1)
         reg_dim = self.bbox_coder.encode_size
         self.retina_reg = nn.Conv2d(
             self.feat_channels, self.num_base_priors * reg_dim, 3, padding=1)
+
 
     def forward_single(self, x: Tensor) -> Tuple[Tensor, Tensor]:
         """Forward feature of a single scale level.
@@ -146,12 +166,98 @@ class S2ARefineHead(RotatedRetinaHead):
         cls_feat = self.or_pool(x)
         for cls_conv in self.cls_convs:
             cls_feat = cls_conv(cls_feat)
+            # cls_epison = self.epison_hot_convs(cls_feat)
         for reg_conv in self.reg_convs:
             reg_feat = reg_conv(reg_feat)
+        # print(cls_feat.shape)
         cls_score = self.retina_cls(cls_feat)
+        # print(cls_score.shape)
+        cls_epison = self.epison_hot_conv(cls_score)
+        # print(cls_epison.shape)
         bbox_pred = self.retina_reg(reg_feat)
-        return cls_score, bbox_pred
+        return cls_score, cls_epison, bbox_pred
 
+    def loss_by_feat_single(self, 
+                            cls_score: Tensor, 
+                            cls_epison:Tensor,
+                            bbox_pred: Tensor,
+                            anchors: Tensor, 
+                            labels: Tensor,
+                            label_weights: Tensor, 
+                            bbox_targets: Tensor,
+                            bbox_weights: Tensor, 
+                            avg_factor: int) -> tuple:
+        """Calculate the loss of a single scale level based on the features
+        extracted by the detection head.
+
+        Args:
+            cls_score (Tensor): Box scores for each scale level
+                Has shape (N, num_anchors * num_classes, H, W).
+            bbox_pred (Tensor): Box energies / deltas for each scale
+                level with shape (N, num_anchors * 4, H, W).
+            anchors (Tensor): Box reference for each scale level with shape
+                (N, num_total_anchors, 4).
+            labels (Tensor): Labels of each anchors with shape
+                (N, num_total_anchors).
+            label_weights (Tensor): Label weights of each anchor with shape
+                (N, num_total_anchors)
+            bbox_targets (Tensor): BBox regression targets of each anchor
+                weight shape (N, num_total_anchors, 4).
+            bbox_weights (Tensor): BBox regression loss weights of each anchor
+                with shape (N, num_total_anchors, 4).
+            avg_factor (int): Average factor that is used to average the loss.
+
+        Returns:
+            tuple: loss components.
+        """
+        # classification loss
+        labels = labels.reshape(-1)
+        label_weights = label_weights.reshape(-1)
+        cls_score = cls_score.permute(0, 2, 3,
+                                      1).reshape(-1, self.cls_out_channels)
+        loss_cls = self.loss_cls(
+            cls_score, cls_epison, labels, label_weights, avg_factor=avg_factor)
+        
+        # regression loss
+        target_dim = bbox_targets.size(-1)
+        bbox_targets = bbox_targets.reshape(-1, target_dim)
+        bbox_weights = bbox_weights.reshape(-1, target_dim)
+        bbox_pred = bbox_pred.permute(0, 2, 3,
+                                      1).reshape(-1,
+                                                 self.bbox_coder.encode_size)
+
+        if self.reg_decoded_bbox and (self.loss_bbox_type != 'kfiou'):
+            # When the regression loss (e.g. `IouLoss`, `GIouLoss`)
+            # is applied directly on the decoded bounding boxes, it
+            # decodes the already encoded coordinates to absolute format.
+            anchors = anchors.reshape(-1, anchors.size(-1))
+            bbox_pred = self.bbox_coder.decode(anchors, bbox_pred)
+            bbox_pred = get_box_tensor(bbox_pred)
+
+        if self.loss_bbox_type == 'normal':
+            loss_bbox = self.loss_bbox(
+                bbox_pred, bbox_targets, bbox_weights, avg_factor=avg_factor)
+        elif self.loss_bbox_type == 'kfiou':
+            # When the regression loss (e.g. `KFLoss`)
+            # is applied on both the delta and decoded boxes.
+            anchors = anchors.reshape(-1, anchors.size(-1))
+            bbox_pred_decode = self.bbox_coder.decode(anchors, bbox_pred)
+            bbox_pred_decode = get_box_tensor(bbox_pred_decode)
+            bbox_targets_decode = self.bbox_coder.decode(anchors, bbox_targets)
+            bbox_targets_decode = get_box_tensor(bbox_targets_decode)
+            loss_bbox = self.loss_bbox(
+                bbox_pred,
+                bbox_targets,
+                bbox_weights,
+                pred_decode=bbox_pred_decode,
+                targets_decode=bbox_targets_decode,
+                avg_factor=avg_factor)
+        else:
+            raise NotImplementedError
+
+        return loss_cls, loss_bbox
+
+    
     def loss_by_feat(self,
                      cls_scores: List[Tensor],
                      bbox_preds: List[Tensor],
@@ -189,6 +295,7 @@ class S2ARefineHead(RotatedRetinaHead):
             batch_gt_instances=batch_gt_instances,
             batch_img_metas=batch_img_metas,
             batch_gt_instances_ignore=batch_gt_instances_ignore)
+
 
     def get_anchors(self,
                     featmap_sizes: List[tuple],

@@ -37,6 +37,7 @@ mmrotate/models/backbones/re_resnet.py
 mmrotate/models/dense_heads/__init__.py
 mmrotate/models/dense_heads/angle_branch_retina_head.py
 mmrotate/models/dense_heads/cfa_head.py
+mmrotate/models/dense_heads/epison_hot_head.py
 mmrotate/models/dense_heads/h2rbox_head.py
 mmrotate/models/dense_heads/h2rbox_v2_head.py
 mmrotate/models/dense_heads/oriented_reppoints_head.py
@@ -50,6 +51,7 @@ mmrotate/models/dense_heads/rotated_rtmdet_head.py
 mmrotate/models/dense_heads/s2a_head.py
 mmrotate/models/dense_heads/sam_reppoints_head.py
 mmrotate/models/detectors/__init__.py
+mmrotate/models/detectors/epison_hot_single_stage copy.py
 mmrotate/models/detectors/h2rbox.py
 mmrotate/models/detectors/h2rbox_v2.py
 mmrotate/models/detectors/refine_single_stage.py
@@ -57,6 +59,7 @@ mmrotate/models/layers/__init__.py
 mmrotate/models/layers/align.py
 mmrotate/models/losses/__init__.py
 mmrotate/models/losses/convex_giou_loss.py
+mmrotate/models/losses/epison_hot_focal_loss.py
 mmrotate/models/losses/gaussian_dist_loss.py
 mmrotate/models/losses/gaussian_dist_loss_v1.py
 mmrotate/models/losses/h2rbox_consistency_loss.py

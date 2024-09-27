@@ -78,9 +78,17 @@ class EpisonHotFocalLoss(nn.Module):
         num_classes = pred.size(1)
         target = F.one_hot(target.to(torch.int64), num_classes=num_classes + 1).float()
         target = target[:, :num_classes]
-        target_smooth = target * (1 - smoothing) + smoothing / (num_classes - 1)
+        # print("pred's shape: ", pred.shape)
+        # print("smoothing's shape: ", smoothing.shape)
+        # print("target's shape: ", target.shape)
+
+        target_smooth = torch.mul(target,(1 - smoothing)) + smoothing / (num_classes - 1)
+
+
+
         target = target.type_as(pred)
         target_smooth = target_smooth.type_as(pred)
+        # print(target_smooth.shape)
 
         pred_sigmoid = pred.sigmoid()
 
@@ -97,5 +105,5 @@ class EpisonHotFocalLoss(nn.Module):
                     assert weight.numel() == loss.numel()
                     weight = weight.view(loss.size(0), -1)
             assert weight.ndim == loss.ndim
-        loss = weight_reduce_loss(loss, weight, reduction, avg_factor)
+        loss_cls = weight_reduce_loss(loss, weight, reduction, avg_factor)
         return loss_cls

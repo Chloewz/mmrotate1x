@@ -13,57 +13,8 @@ from mmrotate.registry import MODELS
 from mmrotate.structures.bbox import RotatedBoxes
 from ..utils import ORConv2d, RotationInvariantPooling
 from .rotated_retina_head import RotatedRetinaHead
-from mmdet.models.layers import SELayer
-from mmdet.structures.bbox import get_box_tensor
-# from mmdet.models.dense_heads import RetinaHead
-
-import numpy as np
-
-# @MODELS.register_module()
-# class S2AHead(RotatedRetinaHead):
-#     r"""An anchor-based head used in `S2A-Net
-#     <https://ieeexplore.ieee.org/document/9377550>`_.
-#     """  # noqa: W605
-
-#     def filter_bboxes(self, cls_scores: List[Tensor],
-#                       bbox_preds: List[Tensor]) -> List[List[Tensor]]:
-#         """This function will be used in S2ANet, whose num_anchors=1.
-
-#         Args:
-#             cls_scores (list[Tensor]): Box scores for each scale level
-#                 Has shape (N, num_classes, H, W)
-#             bbox_preds (list[Tensor]): Box energies / deltas for each scale
-#                 level with shape (N, 5, H, W)
-
-#         Returns:
-#             list[list[Tensor]]: refined rbboxes of each level of each image.
-#         """
-#         # print(cls_scores[0].shape)
-#         num_levels = len(cls_scores)
-#         assert num_levels == len(bbox_preds)
-#         num_imgs = cls_scores[0].size(0)
-#         for i in range(num_levels):
-#             assert num_imgs == cls_scores[i].size(0) == bbox_preds[i].size(0)
-
-#         device = cls_scores[0].device
-#         featmap_sizes = [cls_scores[i].shape[-2:] for i in range(num_levels)]
-#         mlvl_anchors = self.anchor_generator.grid_priors(
-#             featmap_sizes, device=device)
-
-#         bboxes_list = [[] for _ in range(num_imgs)]
-
-#         for lvl in range(num_levels):
-#             bbox_pred = bbox_preds[lvl]
-#             bbox_pred = bbox_pred.permute(0, 2, 3, 1)
-#             bbox_pred = bbox_pred.reshape(num_imgs, -1, 5)
-#             anchors = mlvl_anchors[lvl]
-
-#             for img_id in range(num_imgs):
-#                 bbox_pred_i = bbox_pred[img_id]
-#                 decode_bbox_i = self.bbox_coder.decode(anchors, bbox_pred_i)
-#                 bboxes_list[img_id].append(decode_bbox_i.detach())
-
-#         return bboxes_list
+from mmdet.structures.bbox import get_box_tensor, cat_boxes
+from mmdet.models.utils import images_to_levels, multi_apply
 
 
 @MODELS.register_module()
@@ -101,7 +52,7 @@ class EpisonHotRefineHead(RotatedRetinaHead):
         self.relu = nn.ReLU(inplace=True)
         self.cls_convs = nn.ModuleList()
         self.reg_convs = nn.ModuleList()
-        # self.epison_hot_convs = nn.ModuleList()
+        self.epison_hot_convs = nn.ModuleList()
         for i in range(self.stacked_convs):
             chn = int(self.feat_channels / 8) if i == 0 else self.feat_channels
             self.cls_convs.append(
@@ -122,29 +73,25 @@ class EpisonHotRefineHead(RotatedRetinaHead):
                     padding=1,
                     conv_cfg=self.conv_cfg,
                     norm_cfg=self.norm_cfg))
-            # self.epison_hot_convs.append(
-            #     ConvModule(
-            #         self.feat_channels,
-            #         self.feat_channels,
-            #         3,
-            #         stride=1,
-            #         padding=1,
-            #         conv_cfg=self.conv_cfg,
-            #         norm_cfg=self.norm_cfg))
+            self.epison_hot_convs.append(
+                ConvModule(
+                    self.feat_channels,
+                    self.feat_channels,
+                    3,
+                    stride=1,
+                    padding=1,
+                    conv_cfg=self.conv_cfg,
+                    norm_cfg=self.norm_cfg))
         self.retina_cls = nn.Conv2d(
             self.feat_channels,
-            self.num_base_priors * self.cls_out_channels,
-            3,
-            padding=1)
-        # self.epison_hot_conv = SELayer(channels=self.num_base_priors * self.cls_out_channels)
-        self.epison_hot_conv = nn.Conv2d(
-            self.num_base_priors * self.cls_out_channels,
             self.num_base_priors * self.cls_out_channels,
             3,
             padding=1)
         reg_dim = self.bbox_coder.encode_size
         self.retina_reg = nn.Conv2d(
             self.feat_channels, self.num_base_priors * reg_dim, 3, padding=1)
+        self.retina_epison = nn.Conv2d(
+            self.feat_channels, self.num_base_priors*self.cls_out_channels,3,padding=1)
 
 
     def forward_single(self, x: Tensor) -> Tuple[Tensor, Tensor]:
@@ -164,23 +111,22 @@ class EpisonHotRefineHead(RotatedRetinaHead):
         x = self.or_conv(x)
         reg_feat = x
         cls_feat = self.or_pool(x)
+        epison_feat = x
         for cls_conv in self.cls_convs:
             cls_feat = cls_conv(cls_feat)
-            # cls_epison = self.epison_hot_convs(cls_feat)
         for reg_conv in self.reg_convs:
             reg_feat = reg_conv(reg_feat)
-        # print(cls_feat.shape)
+        for epison_conv in self.epison_hot_convs:
+            epison_feat = epison_conv(epison_feat)
         cls_score = self.retina_cls(cls_feat)
-        # print(cls_score.shape)
-        cls_epison = self.epison_hot_conv(cls_score)
-        # print(cls_epison.shape)
         bbox_pred = self.retina_reg(reg_feat)
-        return cls_score, cls_epison, bbox_pred
+        epison = self.retina_epison(epison_feat)
+        return cls_score, bbox_pred, epison
 
     def loss_by_feat_single(self, 
                             cls_score: Tensor, 
-                            cls_epison:Tensor,
                             bbox_pred: Tensor,
+                            epison: Tensor,
                             anchors: Tensor, 
                             labels: Tensor,
                             label_weights: Tensor, 
@@ -211,12 +157,18 @@ class EpisonHotRefineHead(RotatedRetinaHead):
             tuple: loss components.
         """
         # classification loss
+        # cls_epison = self.epison_hot_conv(cls_score)
+        # print(cls_epison.shape)
+        # cls_epison = cls_epison.permute(0,2,3,1).reshape(-1,self.cls_out_channels)
+        # print(cls_epison.shape)
+        epison = epison.permute(0,2,3,1).reshape(-1,self.cls_out_channels)
+
         labels = labels.reshape(-1)
         label_weights = label_weights.reshape(-1)
         cls_score = cls_score.permute(0, 2, 3,
                                       1).reshape(-1, self.cls_out_channels)
         loss_cls = self.loss_cls(
-            cls_score, cls_epison, labels, label_weights, avg_factor=avg_factor)
+            cls_score, epison, labels, label_weights, avg_factor=avg_factor)
         
         # regression loss
         target_dim = bbox_targets.size(-1)
@@ -261,6 +213,7 @@ class EpisonHotRefineHead(RotatedRetinaHead):
     def loss_by_feat(self,
                      cls_scores: List[Tensor],
                      bbox_preds: List[Tensor],
+                     epison: List[Tensor],
                      batch_gt_instances: InstanceList,
                      batch_img_metas: List[dict],
                      batch_gt_instances_ignore: OptInstanceList = None,
@@ -289,12 +242,44 @@ class EpisonHotRefineHead(RotatedRetinaHead):
         """
         assert rois is not None
         self.bboxes_as_anchors = rois
-        return super(RotatedRetinaHead, self).loss_by_feat(
-            cls_scores=cls_scores,
-            bbox_preds=bbox_preds,
-            batch_gt_instances=batch_gt_instances,
-            batch_img_metas=batch_img_metas,
+
+        featmap_sizes = [featmap.size()[-2:] for featmap in cls_scores]
+        assert len(featmap_sizes) == self.prior_generator.num_levels
+
+        device = cls_scores[0].device
+
+        anchor_list, valid_flag_list = self.get_anchors(
+            featmap_sizes, batch_img_metas, device=device)
+        cls_reg_targets = self.get_targets(
+            anchor_list,
+            valid_flag_list,
+            batch_gt_instances,
+            batch_img_metas,
             batch_gt_instances_ignore=batch_gt_instances_ignore)
+        (labels_list, label_weights_list, bbox_targets_list, bbox_weights_list,
+         avg_factor) = cls_reg_targets
+
+        # anchor number of multi levels
+        num_level_anchors = [anchors.size(0) for anchors in anchor_list[0]]
+        # concat all level anchors and flags to a single tensor
+        concat_anchor_list = []
+        for i in range(len(anchor_list)):
+            concat_anchor_list.append(cat_boxes(anchor_list[i]))
+        all_anchor_list = images_to_levels(concat_anchor_list,
+                                           num_level_anchors)
+
+        losses_cls, losses_bbox = multi_apply(
+            self.loss_by_feat_single,
+            cls_scores,
+            bbox_preds,
+            epison,
+            all_anchor_list,
+            labels_list,
+            label_weights_list,
+            bbox_targets_list,
+            bbox_weights_list,
+            avg_factor=avg_factor)
+        return dict(loss_cls=losses_cls, loss_bbox=losses_bbox)
 
 
     def get_anchors(self,

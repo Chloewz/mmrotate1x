@@ -51,7 +51,7 @@ mmrotate/models/dense_heads/rotated_rtmdet_head.py
 mmrotate/models/dense_heads/s2a_head.py
 mmrotate/models/dense_heads/sam_reppoints_head.py
 mmrotate/models/detectors/__init__.py
-mmrotate/models/detectors/epison_hot_single_stage copy.py
+mmrotate/models/detectors/epison_hot_single_stage.py
 mmrotate/models/detectors/h2rbox.py
 mmrotate/models/detectors/h2rbox_v2.py
 mmrotate/models/detectors/refine_single_stage.py

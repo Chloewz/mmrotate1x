@@ -120,7 +120,7 @@ class TestS2AHead(TestCase):
         feats = (
             torch.rand(1, 1, s // (2**(i + 2)), s // (2**(i + 2)))
             for i in range(len(refine_head.prior_generator.strides)))
-        cls_scores, bbox_preds = refine_head.forward(feats)
+        cls_scores, bbox_preds, epison = refine_head.forward(feats)
 
         # Test that empty ground truth encourages the network to
         # predict background
@@ -129,7 +129,7 @@ class TestS2AHead(TestCase):
         gt_instances.labels = torch.LongTensor([])
 
         empty_gt_losses = refine_head.loss_by_feat(
-            cls_scores, bbox_preds, [gt_instances], img_metas, rois=init_rois)
+            cls_scores, bbox_preds, epison, [gt_instances], img_metas, rois=init_rois)
         # When there is no truth, the cls loss should be nonzero but
         # there should be no box loss.
         empty_cls_loss = sum(empty_gt_losses['loss_cls'])

@@ -94,7 +94,7 @@ class EpisonHotRefineHead(RotatedRetinaHead):
         #     self.feat_channels, self.num_base_priors*self.cls_out_channels,3,padding=1)
         self.retina_epison = nn.Sequential(
             nn.Conv2d(self.feat_channels, self.num_base_priors*self.cls_out_channels,3,padding=1),
-            nn.Sigmoid())
+            nn.ReLU())
 
 
     def forward_single(self, x: Tensor) -> Tuple[Tensor, Tensor]:

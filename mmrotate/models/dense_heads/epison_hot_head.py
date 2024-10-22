@@ -4,6 +4,7 @@ from typing import List, Optional, Tuple, Union
 import torch
 import torch.nn as nn
 from mmcv.cnn import ConvModule
+from mmcv.cnn import DepthwiseSeparableConvModule
 from mmdet.models.utils import select_single_mlvl
 from mmdet.utils import InstanceList, OptInstanceList
 from mmengine.config import ConfigDict
@@ -95,6 +96,12 @@ class EpisonHotRefineHead(RotatedRetinaHead):
         self.retina_epison = nn.Sequential(
             nn.Conv2d(self.feat_channels, self.num_base_priors*self.cls_out_channels,3,padding=1),
             nn.Sigmoid())
+        # self.retina_epison = DepthwiseSeparableConvModule(
+        #         self.feat_channels,
+        #         self.num_base_priors*self.cls_out_channels,
+        #         3,
+        #         padding=1)
+            
 
 
     def forward_single(self, x: Tensor) -> Tuple[Tensor, Tensor]:
@@ -123,7 +130,9 @@ class EpisonHotRefineHead(RotatedRetinaHead):
             epison_feat = epison_conv(epison_feat)
         cls_score = self.retina_cls(cls_feat)
         bbox_pred = self.retina_reg(reg_feat)
+        # print(epison_feat.shape)
         epison = self.retina_epison(epison_feat)
+        # print(epison.shape)
         return cls_score, bbox_pred, epison
 
     def loss_by_feat_single(self, 

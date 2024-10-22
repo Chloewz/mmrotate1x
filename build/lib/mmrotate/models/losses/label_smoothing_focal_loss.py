@@ -23,7 +23,8 @@ def label_smoothing_focal_loss(pred,
     target = F.one_hot(target.to(torch.int64), num_classes=num_classes + 1).float()
     # print(target)
     target = target[:, :num_classes]
-    target_smooth = target * (1 - smoothing) + smoothing / (num_classes - 1)
+    # target_smooth = target * (1 - smoothing) + (1-target)*smoothing / (num_classes - 1)
+    target_smooth = torch.mul(target, (1-smoothing))+torch.div(torch.mul(1-target, smoothing), (num_classes - 1))
     # print(target_smooth)
     target = target.type_as(pred)
     target_smooth = target_smooth.type_as(pred)

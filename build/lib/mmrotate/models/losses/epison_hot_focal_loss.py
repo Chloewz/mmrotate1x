@@ -82,8 +82,8 @@ class EpisonHotFocalLoss(nn.Module):
         # print("smoothing's shape: ", smoothing.shape)
         # print("target's shape: ", target.shape)
 
-        with torch.no_grad():
-            target_smooth = torch.mul(target, (1 - smoothing)) + smoothing / (num_classes - 1)
+        target_smooth = torch.mul(target, (1-smoothing))+torch.div(torch.mul(1-target, smoothing), (num_classes - 1))
+        print(target_smooth)
 
         target = target.type_as(pred)
         target_smooth = target_smooth.type_as(pred)

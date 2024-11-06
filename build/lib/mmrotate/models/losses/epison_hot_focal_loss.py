@@ -7,15 +7,13 @@ from mmdet.models import weight_reduce_loss
 
 # from mmrotate.registration import
 
+
 @MODELS.register_module()
 class EpisonHotFocalLoss(nn.Module):
 
-    def __init__(self,
-                 use_sigmoid=True,
-                 gamma=2.0,
-                 alpha=0.25,
-                 reduction='mean',
-                 loss_weight=1.0):
+    def __init__(
+        self, use_sigmoid=True, gamma=2.0, alpha=0.25, reduction="mean", loss_weight=1.0
+    ):
         """`Focal Loss <https://arxiv.org/abs/1708.02002>`_
 
         Args:
@@ -35,7 +33,7 @@ class EpisonHotFocalLoss(nn.Module):
                 Defaults to False.
         """
         super(EpisonHotFocalLoss, self).__init__()
-        assert use_sigmoid is True, 'Only sigmoid focal loss supported now.'
+        assert use_sigmoid is True, "Only sigmoid focal loss supported now."
         self.use_sigmoid = use_sigmoid
         self.gamma = gamma
         self.alpha = alpha
@@ -43,13 +41,15 @@ class EpisonHotFocalLoss(nn.Module):
         self.loss_weight = loss_weight
         self.smoothing = 0.1
 
-    def forward(self,
-                pred,
-                epison,
-                target,
-                weight=None,
-                avg_factor=None,
-                reduction_override=None):
+    def forward(
+        self,
+        pred,
+        epison,
+        target,
+        weight=None,
+        avg_factor=None,
+        reduction_override=None,
+    ):
         """Forward function.
 
         Args:
@@ -66,13 +66,11 @@ class EpisonHotFocalLoss(nn.Module):
         Returns:
             torch.Tensor: The calculated loss
         """
-        assert reduction_override in (None, 'none', 'mean', 'sum')
-        reduction = (
-            reduction_override if reduction_override else self.reduction)
+        assert reduction_override in (None, "none", "mean", "sum")
+        reduction = reduction_override if reduction_override else self.reduction
 
         alpha = self.alpha
         gamma = self.gamma
-        # smoothing = self.smoothing
         smoothing = epison
 
         num_classes = pred.size(1)
@@ -82,8 +80,9 @@ class EpisonHotFocalLoss(nn.Module):
         # print("smoothing's shape: ", smoothing.shape)
         # print("target's shape: ", target.shape)
 
-        target_smooth = torch.mul(target, (1-smoothing))+torch.div(torch.mul(1-target, smoothing), (num_classes - 1))
-        print(target_smooth)
+        target_smooth = torch.mul(target, (1 - smoothing)) + torch.div(
+            torch.mul(1 - target, smoothing), (num_classes - 1)
+        )
 
         target = target.type_as(pred)
         target_smooth = target_smooth.type_as(pred)
@@ -92,10 +91,11 @@ class EpisonHotFocalLoss(nn.Module):
         pred_sigmoid = pred.sigmoid()
 
         pt = (1 - pred_sigmoid) * target_smooth + pred_sigmoid * (1 - target_smooth)
-        focal_weight = (alpha * target + (1 - alpha) *
-                        (1 - target)) * pt.pow(gamma)
-        loss = F.binary_cross_entropy_with_logits(
-            pred, target_smooth, reduction='none') * focal_weight
+        focal_weight = (alpha * target + (1 - alpha) * (1 - target)) * pt.pow(gamma)
+        loss = (
+            F.binary_cross_entropy_with_logits(pred, target_smooth, reduction="none")
+            * focal_weight
+        )
         if weight is not None:
             if weight.shape != loss.shape:
                 if weight.size(0) == loss.size(0):

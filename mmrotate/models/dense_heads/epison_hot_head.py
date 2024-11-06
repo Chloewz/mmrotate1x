@@ -4,7 +4,6 @@ from typing import List, Optional, Tuple, Union
 import torch
 import torch.nn as nn
 from mmcv.cnn import ConvModule
-from mmcv.cnn import DepthwiseSeparableConvModule
 from mmdet.models.utils import select_single_mlvl
 from mmdet.utils import InstanceList, OptInstanceList
 from mmengine.config import ConfigDict
@@ -12,7 +11,7 @@ from torch import Tensor
 
 from mmrotate.registry import MODELS
 from mmrotate.structures.bbox import RotatedBoxes
-from ..utils import ORConv2d, RotationInvariantPooling
+from ..utils import ORConv2d, RotationInvariantPooling, SEAttention, CBAMBlock
 from .rotated_retina_head import RotatedRetinaHead
 from mmdet.structures.bbox import get_box_tensor, cat_boxes
 from mmdet.models.utils import images_to_levels, multi_apply
@@ -31,13 +30,10 @@ class EpisonHotRefineHead(RotatedRetinaHead):
         frm_cfg (dict): Config of the feature refine module.
     """  # noqa: W605
 
-    def __init__(self,
-                 num_classes: int,
-                 in_channels: int,
-                 frm_cfg: dict = None,
-                 **kwargs) -> None:
-        super().__init__(
-            num_classes=num_classes, in_channels=in_channels, **kwargs)
+    def __init__(
+        self, num_classes: int, in_channels: int, frm_cfg: dict = None, **kwargs
+    ) -> None:
+        super().__init__(num_classes=num_classes, in_channels=in_channels, **kwargs)
         self.feat_refine_module = MODELS.build(frm_cfg)
         self.bboxes_as_anchors = None
 
@@ -48,7 +44,8 @@ class EpisonHotRefineHead(RotatedRetinaHead):
             int(self.feat_channels / 8),
             kernel_size=3,
             padding=1,
-            arf_config=(1, 8))
+            arf_config=(1, 8),
+        )
         self.or_pool = RotationInvariantPooling(self.feat_channels, 8)
         self.relu = nn.ReLU(inplace=True)
         self.cls_convs = nn.ModuleList()
@@ -64,7 +61,9 @@ class EpisonHotRefineHead(RotatedRetinaHead):
                     stride=1,
                     padding=1,
                     conv_cfg=self.conv_cfg,
-                    norm_cfg=self.norm_cfg))
+                    norm_cfg=self.norm_cfg,
+                )
+            )
             self.reg_convs.append(
                 ConvModule(
                     self.feat_channels,
@@ -73,7 +72,9 @@ class EpisonHotRefineHead(RotatedRetinaHead):
                     stride=1,
                     padding=1,
                     conv_cfg=self.conv_cfg,
-                    norm_cfg=self.norm_cfg))
+                    norm_cfg=self.norm_cfg,
+                )
+            )
             self.epison_hot_convs.append(
                 ConvModule(
                     self.feat_channels,
@@ -82,27 +83,30 @@ class EpisonHotRefineHead(RotatedRetinaHead):
                     stride=1,
                     padding=1,
                     conv_cfg=self.conv_cfg,
-                    norm_cfg=self.norm_cfg))
+                    norm_cfg=self.norm_cfg,
+                )
+            )
         self.retina_cls = nn.Conv2d(
             self.feat_channels,
             self.num_base_priors * self.cls_out_channels,
             3,
-            padding=1)
+            padding=1,
+        )
         reg_dim = self.bbox_coder.encode_size
         self.retina_reg = nn.Conv2d(
-            self.feat_channels, self.num_base_priors * reg_dim, 3, padding=1)
-        # self.retina_epison = nn.Conv2d(
-        #     self.feat_channels, self.num_base_priors*self.cls_out_channels,3,padding=1)
+            self.feat_channels, self.num_base_priors * reg_dim, 3, padding=1
+        )
+        # self.seattention = SEAttention(self.feat_channels)
+        self.cbam = CBAMBlock(self.feat_channels)
         self.retina_epison = nn.Sequential(
-            nn.Conv2d(self.feat_channels, self.num_base_priors*self.cls_out_channels,3,padding=1),
-            nn.Sigmoid())
-        # self.retina_epison = DepthwiseSeparableConvModule(
-        #         self.feat_channels,
-        #         self.num_base_priors*self.cls_out_channels,
-        #         3,
-        #         padding=1)
-            
-
+            nn.Conv2d(
+                self.feat_channels,
+                self.num_base_priors * self.cls_out_channels,
+                3,
+                padding=1,
+            ),
+            nn.Sigmoid(),
+        )
 
     def forward_single(self, x: Tensor) -> Tuple[Tensor, Tensor]:
         """Forward feature of a single scale level.
@@ -130,21 +134,24 @@ class EpisonHotRefineHead(RotatedRetinaHead):
             epison_feat = epison_conv(epison_feat)
         cls_score = self.retina_cls(cls_feat)
         bbox_pred = self.retina_reg(reg_feat)
-        # print(epison_feat.shape)
+        # print("feature.shape: ", epison_feat.shape)
+        epison_feat = self.cbam(epison_feat)
         epison = self.retina_epison(epison_feat)
-        # print(epison.shape)
+        # print("epison.shape: ",epison.shape)
         return cls_score, bbox_pred, epison
 
-    def loss_by_feat_single(self, 
-                            cls_score: Tensor, 
-                            bbox_pred: Tensor,
-                            epison: Tensor,
-                            anchors: Tensor, 
-                            labels: Tensor,
-                            label_weights: Tensor, 
-                            bbox_targets: Tensor,
-                            bbox_weights: Tensor, 
-                            avg_factor: int) -> tuple:
+    def loss_by_feat_single(
+        self,
+        cls_score: Tensor,
+        bbox_pred: Tensor,
+        epison: Tensor,
+        anchors: Tensor,
+        labels: Tensor,
+        label_weights: Tensor,
+        bbox_targets: Tensor,
+        bbox_weights: Tensor,
+        avg_factor: int,
+    ) -> tuple:
         """Calculate the loss of a single scale level based on the features
         extracted by the detection head.
 
@@ -173,24 +180,24 @@ class EpisonHotRefineHead(RotatedRetinaHead):
         # print(cls_epison.shape)
         # cls_epison = cls_epison.permute(0,2,3,1).reshape(-1,self.cls_out_channels)
         # print(cls_epison.shape)
-        epison = epison.permute(0,2,3,1).reshape(-1,self.cls_out_channels)
+        epison = epison.permute(0, 2, 3, 1).reshape(-1, self.cls_out_channels)
 
         labels = labels.reshape(-1)
         label_weights = label_weights.reshape(-1)
-        cls_score = cls_score.permute(0, 2, 3,
-                                      1).reshape(-1, self.cls_out_channels)
+        cls_score = cls_score.permute(0, 2, 3, 1).reshape(-1, self.cls_out_channels)
         loss_cls = self.loss_cls(
-            cls_score, epison, labels, label_weights, avg_factor=avg_factor)
-        
+            cls_score, epison, labels, label_weights, avg_factor=avg_factor
+        )
+
         # regression loss
         target_dim = bbox_targets.size(-1)
         bbox_targets = bbox_targets.reshape(-1, target_dim)
         bbox_weights = bbox_weights.reshape(-1, target_dim)
-        bbox_pred = bbox_pred.permute(0, 2, 3,
-                                      1).reshape(-1,
-                                                 self.bbox_coder.encode_size)
+        bbox_pred = bbox_pred.permute(0, 2, 3, 1).reshape(
+            -1, self.bbox_coder.encode_size
+        )
 
-        if self.reg_decoded_bbox and (self.loss_bbox_type != 'kfiou'):
+        if self.reg_decoded_bbox and (self.loss_bbox_type != "kfiou"):
             # When the regression loss (e.g. `IouLoss`, `GIouLoss`)
             # is applied directly on the decoded bounding boxes, it
             # decodes the already encoded coordinates to absolute format.
@@ -198,10 +205,11 @@ class EpisonHotRefineHead(RotatedRetinaHead):
             bbox_pred = self.bbox_coder.decode(anchors, bbox_pred)
             bbox_pred = get_box_tensor(bbox_pred)
 
-        if self.loss_bbox_type == 'normal':
+        if self.loss_bbox_type == "normal":
             loss_bbox = self.loss_bbox(
-                bbox_pred, bbox_targets, bbox_weights, avg_factor=avg_factor)
-        elif self.loss_bbox_type == 'kfiou':
+                bbox_pred, bbox_targets, bbox_weights, avg_factor=avg_factor
+            )
+        elif self.loss_bbox_type == "kfiou":
             # When the regression loss (e.g. `KFLoss`)
             # is applied on both the delta and decoded boxes.
             anchors = anchors.reshape(-1, anchors.size(-1))
@@ -215,21 +223,23 @@ class EpisonHotRefineHead(RotatedRetinaHead):
                 bbox_weights,
                 pred_decode=bbox_pred_decode,
                 targets_decode=bbox_targets_decode,
-                avg_factor=avg_factor)
+                avg_factor=avg_factor,
+            )
         else:
             raise NotImplementedError
 
         return loss_cls, loss_bbox
 
-    
-    def loss_by_feat(self,
-                     cls_scores: List[Tensor],
-                     bbox_preds: List[Tensor],
-                     epison: List[Tensor],
-                     batch_gt_instances: InstanceList,
-                     batch_img_metas: List[dict],
-                     batch_gt_instances_ignore: OptInstanceList = None,
-                     rois: List[Tensor] = None) -> dict:
+    def loss_by_feat(
+        self,
+        cls_scores: List[Tensor],
+        bbox_preds: List[Tensor],
+        epison: List[Tensor],
+        batch_gt_instances: InstanceList,
+        batch_img_metas: List[dict],
+        batch_gt_instances_ignore: OptInstanceList = None,
+        rois: List[Tensor] = None,
+    ) -> dict:
         """Calculate the loss based on the features extracted by the detection
         head.
 
@@ -261,15 +271,22 @@ class EpisonHotRefineHead(RotatedRetinaHead):
         device = cls_scores[0].device
 
         anchor_list, valid_flag_list = self.get_anchors(
-            featmap_sizes, batch_img_metas, device=device)
+            featmap_sizes, batch_img_metas, device=device
+        )
         cls_reg_targets = self.get_targets(
             anchor_list,
             valid_flag_list,
             batch_gt_instances,
             batch_img_metas,
-            batch_gt_instances_ignore=batch_gt_instances_ignore)
-        (labels_list, label_weights_list, bbox_targets_list, bbox_weights_list,
-         avg_factor) = cls_reg_targets
+            batch_gt_instances_ignore=batch_gt_instances_ignore,
+        )
+        (
+            labels_list,
+            label_weights_list,
+            bbox_targets_list,
+            bbox_weights_list,
+            avg_factor,
+        ) = cls_reg_targets
 
         # anchor number of multi levels
         num_level_anchors = [anchors.size(0) for anchors in anchor_list[0]]
@@ -277,8 +294,7 @@ class EpisonHotRefineHead(RotatedRetinaHead):
         concat_anchor_list = []
         for i in range(len(anchor_list)):
             concat_anchor_list.append(cat_boxes(anchor_list[i]))
-        all_anchor_list = images_to_levels(concat_anchor_list,
-                                           num_level_anchors)
+        all_anchor_list = images_to_levels(concat_anchor_list, num_level_anchors)
 
         losses_cls, losses_bbox = multi_apply(
             self.loss_by_feat_single,
@@ -290,15 +306,16 @@ class EpisonHotRefineHead(RotatedRetinaHead):
             label_weights_list,
             bbox_targets_list,
             bbox_weights_list,
-            avg_factor=avg_factor)
+            avg_factor=avg_factor,
+        )
         return dict(loss_cls=losses_cls, loss_bbox=losses_bbox)
 
-
-    def get_anchors(self,
-                    featmap_sizes: List[tuple],
-                    batch_img_metas: List[dict],
-                    device: Union[torch.device, str] = 'cuda') \
-            -> Tuple[List[List[Tensor]], List[List[Tensor]]]:
+    def get_anchors(
+        self,
+        featmap_sizes: List[tuple],
+        batch_img_metas: List[dict],
+        device: Union[torch.device, str] = "cuda",
+    ) -> Tuple[List[List[Tensor]], List[List[Tensor]]]:
         """Get anchors according to feature map sizes.
 
         Args:
@@ -311,32 +328,34 @@ class EpisonHotRefineHead(RotatedRetinaHead):
             tuple:
 
             - anchor_list (list[list[Tensor]]): Anchors of each image.
-            - valid_flag_list (list[list[Tensor]]): Valid flags of each
-              image.
+            - valid_flag_list (list[list[Tensor]]): Valid flags of each image.
         """
-        anchor_list = [[
-            RotatedBoxes(bboxes_img_lvl).detach()
-            for bboxes_img_lvl in bboxes_img
-        ] for bboxes_img in self.bboxes_as_anchors]
+        anchor_list = [
+            [RotatedBoxes(bboxes_img_lvl).detach() for bboxes_img_lvl in bboxes_img]
+            for bboxes_img in self.bboxes_as_anchors
+        ]
 
         # for each image, we compute valid flags of multi level anchors
         valid_flag_list = []
         for img_id, img_meta in enumerate(batch_img_metas):
             multi_level_flags = self.prior_generator.valid_flags(
-                featmap_sizes, img_meta['pad_shape'], device)
+                featmap_sizes, img_meta["pad_shape"], device
+            )
             valid_flag_list.append(multi_level_flags)
 
         return anchor_list, valid_flag_list
 
-    def predict_by_feat(self,
-                        cls_scores: List[Tensor],
-                        bbox_preds: List[Tensor],
-                        score_factors: Optional[List[Tensor]] = None,
-                        rois: List[Tensor] = None,
-                        batch_img_metas: Optional[List[dict]] = None,
-                        cfg: Optional[ConfigDict] = None,
-                        rescale: bool = False,
-                        with_nms: bool = True) -> InstanceList:
+    def predict_by_feat(
+        self,
+        cls_scores: List[Tensor],
+        bbox_preds: List[Tensor],
+        score_factors: Optional[List[Tensor]] = None,
+        rois: List[Tensor] = None,
+        batch_img_metas: Optional[List[dict]] = None,
+        cfg: Optional[ConfigDict] = None,
+        rescale: bool = False,
+        with_nms: bool = True,
+    ) -> InstanceList:
         """Transform a batch of output features extracted from the head into
         bbox results.
 
@@ -369,12 +388,10 @@ class EpisonHotRefineHead(RotatedRetinaHead):
             list[:obj:`InstanceData`]: Object detection results of each image
             after the post process. Each item usually contains following keys.
 
-            - scores (Tensor): Classification scores, has a shape
-              (num_instance, )
-            - labels (Tensor): Labels of bboxes, has a shape
-              (num_instances, ).
-            - bboxes (Tensor): Has a shape (num_instances, 4),
-              the last dimension 4 arrange as (x1, y1, x2, y2).
+            - scores (Tensor): Classification scores, has a shape (num_instance, )
+            - labels (Tensor): Labels of bboxes, has a shape (num_instances, ).
+            - bboxes (Tensor): Has a shape (num_instances, 4), 
+            the last dimension 4 arrange as (x1, y1, x2, y2).
         """
         assert len(cls_scores) == len(bbox_preds)
         assert rois is not None
@@ -393,13 +410,12 @@ class EpisonHotRefineHead(RotatedRetinaHead):
 
         for img_id in range(len(batch_img_metas)):
             img_meta = batch_img_metas[img_id]
-            cls_score_list = select_single_mlvl(
-                cls_scores, img_id, detach=True)
-            bbox_pred_list = select_single_mlvl(
-                bbox_preds, img_id, detach=True)
+            cls_score_list = select_single_mlvl(cls_scores, img_id, detach=True)
+            bbox_pred_list = select_single_mlvl(bbox_preds, img_id, detach=True)
             if with_score_factors:
                 score_factor_list = select_single_mlvl(
-                    score_factors, img_id, detach=True)
+                    score_factors, img_id, detach=True
+                )
             else:
                 score_factor_list = [None for _ in range(num_levels)]
 
@@ -411,12 +427,12 @@ class EpisonHotRefineHead(RotatedRetinaHead):
                 img_meta=img_meta,
                 cfg=cfg,
                 rescale=rescale,
-                with_nms=with_nms)
+                with_nms=with_nms,
+            )
             result_list.append(results)
         return result_list
 
-    def feature_refine(self, x: List[Tensor],
-                       rois: List[List[Tensor]]) -> List[Tensor]:
+    def feature_refine(self, x: List[Tensor], rois: List[List[Tensor]]) -> List[Tensor]:
         """Refine the input feature use feature refine module.
 
         Args:
@@ -430,8 +446,12 @@ class EpisonHotRefineHead(RotatedRetinaHead):
         """
         return self.feat_refine_module(x, rois)
 
-    def refine_bboxes(self, cls_scores: List[Tensor], bbox_preds: List[Tensor],
-                      rois: List[List[Tensor]]) -> List[List[Tensor]]:
+    def refine_bboxes(
+        self,
+        cls_scores: List[Tensor],
+        bbox_preds: List[Tensor],
+        rois: List[List[Tensor]],
+    ) -> List[List[Tensor]]:
         """Refine predicted bounding boxes at each position of the feature
         maps. This method will be used in R3Det in refinement stages.
 

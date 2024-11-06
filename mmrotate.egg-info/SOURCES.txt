@@ -97,10 +97,12 @@ mmrotate/models/task_modules/coders/gliding_vertex_coder.py
 mmrotate/models/task_modules/prior_generators/__init__.py
 mmrotate/models/task_modules/prior_generators/anchor_generator.py
 mmrotate/models/utils/__init__.py
+mmrotate/models/utils/cbam.py
 mmrotate/models/utils/enn.py
 mmrotate/models/utils/misc.py
 mmrotate/models/utils/orconv.py
 mmrotate/models/utils/ripool.py
+mmrotate/models/utils/se.py
 mmrotate/structures/__init__.py
 mmrotate/structures/bbox/__init__.py
 mmrotate/structures/bbox/bbox_overlaps.py

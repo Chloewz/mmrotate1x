@@ -4,4 +4,4 @@ python tools/train.py --config configs/sodaa-benchmarks/s2anet-le90_r50_fpn_1x_s
 # SODAA S2ANET LSFocalLoss
 python tools/train.py --config configs/sodaa-benchmarks/s2anet-le90_r50_fpn_1x_sodaa_smooth.py --work-dir /mnt/d/exp/sodaa_sob/4060/0924_smooth
 
-python tools/train.py --config configs/sodaa-benchmarks/s2anet-le90_r50_fpn_1x_sodaa_epison.py --work-dir /mnt/d/exp/sodaa_sob/4060/1011_epison --cfg-options randomness.seed=42
+python tools/train.py --config configs/sodaa-benchmarks/s2anet-le90_r50_fpn_1x_sodaa_epison.py --work-dir /mnt/d/exp/sodaa_sob/4060/1105_epison --cfg-options randomness.seed=42

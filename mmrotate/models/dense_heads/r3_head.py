@@ -18,12 +18,16 @@ class R3Head(RotatedRetinaHead):
     <https://arxiv.org/pdf/1908.05612.pdf>`_.
     """  # noqa: W605
 
-    def filter_bboxes(self, cls_scores: List[Tensor],
-                      bbox_preds: List[Tensor]) -> List[List[Tensor]]:
+    def filter_bboxes(
+        self, cls_scores: List[Tensor], bbox_preds: List[Tensor]
+    ) -> List[List[Tensor]]:
         """Filter predicted bounding boxes at each position of the feature
         maps. Only one bounding boxes with highest score will be left at each
         position. This filter will be used in R3Det prior to the first feature
         refinement stage.
+
+        过滤特征图中每个位置的预测边界框。每个位置只留下得分最高的bbox。
+        该函数将在第一个特征细化阶段之前使用
 
         Args:
             cls_scores (list[Tensor]): Box scores for each scale level
@@ -35,7 +39,7 @@ class R3Head(RotatedRetinaHead):
             list[list[Tensor]]: best or refined rbboxes of each level
             of each image.
         """
-        num_levels = len(cls_scores)
+        num_levels = len(cls_scores)  # 获取特征层数
         assert num_levels == len(bbox_preds)
 
         num_imgs = cls_scores[0].size(0)
@@ -45,40 +49,62 @@ class R3Head(RotatedRetinaHead):
 
         device = cls_scores[0].device
         featmap_sizes = [cls_scores[i].shape[-2:] for i in range(num_levels)]
-        mlvl_anchors = self.prior_generator.grid_priors(
-            featmap_sizes, device=device)
+        mlvl_anchors = self.prior_generator.grid_priors(featmap_sizes, device=device)
+        # * self.prior_generator根据每一层的特征图大小，生成多层anchor
 
         bboxes_list = [[] for _ in range(num_imgs)]
 
-        for lvl in range(num_levels):
+        for lvl in range(num_levels):  # 逐层处理特征层，筛选出每个位置得分最高的预测框
             cls_score = cls_scores[lvl]
             bbox_pred = bbox_preds[lvl]
 
             anchors = mlvl_anchors[lvl]
 
             cls_score = cls_score.permute(0, 2, 3, 1)
-            cls_score = cls_score.reshape(num_imgs, -1, self.num_anchors,
-                                          self.cls_out_channels)
+            cls_score = cls_score.reshape(
+                num_imgs, -1, self.num_anchors, self.cls_out_channels
+            )  # * shape:(#imgs, H*W, #anchors, #classes)
 
             cls_score, _ = cls_score.max(dim=-1, keepdim=True)
-            best_ind = cls_score.argmax(dim=-2, keepdim=True)
+            # * max中的dim代表沿着某一维度进行操作，此时即沿着最后一个维度操作
+            # * keepdim=True保持原来的维度，随后shape为(#imgs, H*W, #anchors, 1)
+            # ! 这段代码的目的是在每个anchor的num_classes分类得分中，保留得分最高的数值
+            best_ind = cls_score.argmax(dim=-2, keepdim=True)  # 获取得分最高的索引
+            # * dim=-2: 对于每个空间位置(H*W)，选择得分最高的anchor
+            # * 返回最大值的索引，即哪个anchor在该位置的得分最大
+            # * shape:(#imgs, H*W, 1, 1)
             best_ind = best_ind.expand(-1, -1, -1, 5)
+            # * expand扩展best_ind的维度，-1是不改变该维度的大小，5是在最后一个维度上扩展到5
+            # ! 每个索引重复扩展5次，以便后续操作
 
             bbox_pred = bbox_pred.permute(0, 2, 3, 1)
             bbox_pred = bbox_pred.reshape(num_imgs, -1, self.num_anchors, 5)
-            best_pred = bbox_pred.gather(
-                dim=-2, index=best_ind).squeeze(dim=-2)
+            best_pred = bbox_pred.gather(dim=-2, index=best_ind).squeeze(dim=-2)
+            # * gather用于从输入tensor(input)中根据指定的索引(index)从某个维度(dim)上提取元素
+            # * 操作结果是将input中根据index中的索引位置提取的元素进行组合，形成一个新的tensor
+            # * 此处gather根据best_ind在bbox_pred的num_anchors维度上进行索引操作，返回每个空间位置对应的最佳anchoe的5个bbox参数
+            # * gather后的shape:(#imgs, H*W, 1, 5)  1为每个空间位置只取1个anchor
+            # * squeeze后的shape: (#imgs, H*W, 5)
+            # ! 从bbox_pred中根据best_ind选取每个空间位置上得分最高的anchor对应的5个bbox参数，并去除冗余的维度
 
-            anchors = anchors.reshape(-1, self.num_anchors, 5).tensor
+            anchors = anchors.reshape(
+                -1, self.num_anchors, 5
+            ).tensor  # (H*W, #anchors, 5)
 
             for img_id in range(num_imgs):
-                best_ind_i = best_ind[img_id]
-                best_pred_i = best_pred[img_id]
-                best_anchor_i = anchors.gather(
-                    dim=-2, index=best_ind_i).squeeze(dim=-2)
+                best_ind_i = best_ind[img_id]  # (H*W,1,5)
+                best_pred_i = best_pred[img_id]  # (H*W,5)
+                best_anchor_i = anchors.gather(dim=-2, index=best_ind_i).squeeze(
+                    dim=-2
+                )  # (H*W,5)
                 best_bbox_i = self.bbox_coder.decode(
-                    RotatedBoxes(best_anchor_i), best_pred_i)
+                    RotatedBoxes(best_anchor_i), best_pred_i
+                )
+                # * bbox_coder.decode使用解码器将旋转框和回归预测结合起来，计算出最终的bbox坐标。
+                # *     使用偏移量(回归值)来更新anchor的坐标，并生成最终的bbox
+                # ! 这一过程中，网络的预测值被转化为实际的边界框位置和形状
                 bboxes_list[img_id].append(best_bbox_i.detach())
+                # * detach: 停止梯度的传播，避免梯度的计算，节省内存和计算资源。对它的操作不会影响到计算图其他部分
 
         return bboxes_list
 
@@ -95,23 +121,24 @@ class R3RefineHead(RotatedRetinaHead):
         frm_cfg (dict): Config of the feature refine module.
     """  # noqa: W605
 
-    def __init__(self,
-                 num_classes: int,
-                 in_channels: int,
-                 frm_cfg: dict = None,
-                 **kwargs) -> None:
-        super().__init__(
-            num_classes=num_classes, in_channels=in_channels, **kwargs)
+    def __init__(
+        self, num_classes: int, in_channels: int, frm_cfg: dict = None, **kwargs
+    ) -> None:
+        super().__init__(num_classes=num_classes, in_channels=in_channels, **kwargs)
         self.feat_refine_module = MODELS.build(frm_cfg)
-        self.bboxes_as_anchors = None
+        self.bboxes_as_anchors = (
+            None  # 初始化变量存储作为anchor的bbox，后续计算损失时使用
+        )
 
-    def loss_by_feat(self,
-                     cls_scores: List[Tensor],
-                     bbox_preds: List[Tensor],
-                     batch_gt_instances: InstanceList,
-                     batch_img_metas: List[dict],
-                     batch_gt_instances_ignore: OptInstanceList = None,
-                     rois: List[Tensor] = None) -> dict:
+    def loss_by_feat(
+        self,
+        cls_scores: List[Tensor],
+        bbox_preds: List[Tensor],
+        batch_gt_instances: InstanceList,
+        batch_img_metas: List[dict],
+        batch_gt_instances_ignore: OptInstanceList = None,
+        rois: List[Tensor] = None,
+    ) -> dict:
         """Calculate the loss based on the features extracted by the detection
         head.
 
@@ -141,13 +168,15 @@ class R3RefineHead(RotatedRetinaHead):
             bbox_preds=bbox_preds,
             batch_gt_instances=batch_gt_instances,
             batch_img_metas=batch_img_metas,
-            batch_gt_instances_ignore=batch_gt_instances_ignore)
+            batch_gt_instances_ignore=batch_gt_instances_ignore,
+        )
 
-    def get_anchors(self,
-                    featmap_sizes: List[tuple],
-                    batch_img_metas: List[dict],
-                    device: Union[torch.device, str] = 'cuda') \
-            -> Tuple[List[List[Tensor]], List[List[Tensor]]]:
+    def get_anchors(
+        self,
+        featmap_sizes: List[tuple],
+        batch_img_metas: List[dict],
+        device: Union[torch.device, str] = "cuda",
+    ) -> Tuple[List[List[Tensor]], List[List[Tensor]]]:
         """Get anchors according to feature map sizes.
 
         Args:
@@ -160,34 +189,38 @@ class R3RefineHead(RotatedRetinaHead):
             tuple:
 
             - anchor_list (list[list[Tensor]]): Anchors of each image.
-            - valid_flag_list (list[list[Tensor]]): Valid flags of each
-              image.
+            - valid_flag_list (list[list[Tensor]]): Valid flags of each image.
         """
-        anchor_list = [[
-            RotatedBoxes(bboxes_img_lvl).detach()
-            for bboxes_img_lvl in bboxes_img
-        ] for bboxes_img in self.bboxes_as_anchors]
+        anchor_list = [
+            [RotatedBoxes(bboxes_img_lvl).detach() for bboxes_img_lvl in bboxes_img]
+            for bboxes_img in self.bboxes_as_anchors
+        ]
 
         # for each image, we compute valid flags of multi level anchors
         valid_flag_list = []
         for img_id, img_meta in enumerate(batch_img_metas):
             multi_level_flags = self.prior_generator.valid_flags(
-                featmap_sizes, img_meta['pad_shape'], device)
+                featmap_sizes, img_meta["pad_shape"], device
+            )
             valid_flag_list.append(multi_level_flags)
 
         return anchor_list, valid_flag_list
 
-    def predict_by_feat(self,
-                        cls_scores: List[Tensor],
-                        bbox_preds: List[Tensor],
-                        score_factors: Optional[List[Tensor]] = None,
-                        rois: List[Tensor] = None,
-                        batch_img_metas: Optional[List[dict]] = None,
-                        cfg: Optional[ConfigDict] = None,
-                        rescale: bool = False,
-                        with_nms: bool = True) -> InstanceList:
+    def predict_by_feat(
+        self,
+        cls_scores: List[Tensor],
+        bbox_preds: List[Tensor],
+        score_factors: Optional[List[Tensor]] = None,
+        rois: List[Tensor] = None,
+        batch_img_metas: Optional[List[dict]] = None,
+        cfg: Optional[ConfigDict] = None,
+        rescale: bool = False,
+        with_nms: bool = True,
+    ) -> InstanceList:
         """Transform a batch of output features extracted from the head into
         bbox results.
+
+        将从头部提取出的一batch输出特征转换为bbox结果
 
         Note: When score_factors is not None, the cls_scores are
         usually multiplied by it then obtain the real score used in NMS,
@@ -219,11 +252,11 @@ class R3RefineHead(RotatedRetinaHead):
             after the post process. Each item usually contains following keys.
 
             - scores (Tensor): Classification scores, has a shape
-              (num_instance, )
+            (num_instance, )
             - labels (Tensor): Labels of bboxes, has a shape
-              (num_instances, ).
+            (num_instances, ).
             - bboxes (Tensor): Has a shape (num_instances, 4),
-              the last dimension 4 arrange as (x1, y1, x2, y2).
+            the last dimension 4 arrange as (x1, y1, x2, y2).
         """
         assert len(cls_scores) == len(bbox_preds)
         assert rois is not None
@@ -242,13 +275,12 @@ class R3RefineHead(RotatedRetinaHead):
 
         for img_id in range(len(batch_img_metas)):
             img_meta = batch_img_metas[img_id]
-            cls_score_list = select_single_mlvl(
-                cls_scores, img_id, detach=True)
-            bbox_pred_list = select_single_mlvl(
-                bbox_preds, img_id, detach=True)
+            cls_score_list = select_single_mlvl(cls_scores, img_id, detach=True)
+            bbox_pred_list = select_single_mlvl(bbox_preds, img_id, detach=True)
             if with_score_factors:
                 score_factor_list = select_single_mlvl(
-                    score_factors, img_id, detach=True)
+                    score_factors, img_id, detach=True
+                )
             else:
                 score_factor_list = [None for _ in range(num_levels)]
 
@@ -260,12 +292,12 @@ class R3RefineHead(RotatedRetinaHead):
                 img_meta=img_meta,
                 cfg=cfg,
                 rescale=rescale,
-                with_nms=with_nms)
+                with_nms=with_nms,
+            )
             result_list.append(results)
         return result_list
 
-    def feature_refine(self, x: List[Tensor],
-                       rois: List[List[Tensor]]) -> List[Tensor]:
+    def feature_refine(self, x: List[Tensor], rois: List[List[Tensor]]) -> List[Tensor]:
         """Refine the input feature use feature refine module.
 
         Args:
@@ -279,8 +311,12 @@ class R3RefineHead(RotatedRetinaHead):
         """
         return self.feat_refine_module(x, rois)
 
-    def refine_bboxes(self, cls_scores: List[Tensor], bbox_preds: List[Tensor],
-                      rois: List[List[Tensor]]) -> List[List[Tensor]]:
+    def refine_bboxes(
+        self,
+        cls_scores: List[Tensor],
+        bbox_preds: List[Tensor],
+        rois: List[List[Tensor]],
+    ) -> List[List[Tensor]]:
         """Refine predicted bounding boxes at each position of the feature
         maps. This method will be used in R3Det in refinement stages.
 
@@ -308,6 +344,8 @@ class R3RefineHead(RotatedRetinaHead):
 
         assert rois is not None
         mlvl_rois = [torch.cat(r) for r in zip(*rois)]
+        # 将rois中的多尺度旋转框合并成一个单独的列表
+        # rois是一个包含多个图像和多个尺度的旋转框的列表，torch.cat用于将这些旋转框连接
 
         for lvl in range(num_levels):
             bbox_pred = bbox_preds[lvl]

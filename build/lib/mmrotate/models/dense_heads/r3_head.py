@@ -10,7 +10,6 @@ from torch import Tensor
 from mmrotate.registry import MODELS
 from mmrotate.structures.bbox import RotatedBoxes
 from .rotated_retina_head import RotatedRetinaHead
-# from mmrotate.models.dense_heads.rotated_retina_head import RotatedRetinaHead
 
 
 @MODELS.register_module()
@@ -94,8 +93,10 @@ class R3Head(RotatedRetinaHead):
 
             for img_id in range(num_imgs):
                 best_ind_i = best_ind[img_id]  # (H*W,1,5)
-                best_pred_i = best_pred[img_id] # (H*W,5)
-                best_anchor_i = anchors.gather(dim=-2, index=best_ind_i).squeeze(dim=-2)    # (H*W,5)
+                best_pred_i = best_pred[img_id]  # (H*W,5)
+                best_anchor_i = anchors.gather(dim=-2, index=best_ind_i).squeeze(
+                    dim=-2
+                )  # (H*W,5)
                 best_bbox_i = self.bbox_coder.decode(
                     RotatedBoxes(best_anchor_i), best_pred_i
                 )
@@ -125,7 +126,9 @@ class R3RefineHead(RotatedRetinaHead):
     ) -> None:
         super().__init__(num_classes=num_classes, in_channels=in_channels, **kwargs)
         self.feat_refine_module = MODELS.build(frm_cfg)
-        self.bboxes_as_anchors = None
+        self.bboxes_as_anchors = (
+            None  # 初始化变量存储作为anchor的bbox，后续计算损失时使用
+        )
 
     def loss_by_feat(
         self,
@@ -217,6 +220,8 @@ class R3RefineHead(RotatedRetinaHead):
         """Transform a batch of output features extracted from the head into
         bbox results.
 
+        将从头部提取出的一batch输出特征转换为bbox结果
+
         Note: When score_factors is not None, the cls_scores are
         usually multiplied by it then obtain the real score used in NMS,
         such as CenterNess in FCOS, IoU branch in ATSS.
@@ -247,11 +252,11 @@ class R3RefineHead(RotatedRetinaHead):
             after the post process. Each item usually contains following keys.
 
             - scores (Tensor): Classification scores, has a shape
-              (num_instance, )
+            (num_instance, )
             - labels (Tensor): Labels of bboxes, has a shape
-              (num_instances, ).
+            (num_instances, ).
             - bboxes (Tensor): Has a shape (num_instances, 4),
-              the last dimension 4 arrange as (x1, y1, x2, y2).
+            the last dimension 4 arrange as (x1, y1, x2, y2).
         """
         assert len(cls_scores) == len(bbox_preds)
         assert rois is not None
@@ -339,6 +344,8 @@ class R3RefineHead(RotatedRetinaHead):
 
         assert rois is not None
         mlvl_rois = [torch.cat(r) for r in zip(*rois)]
+        # 将rois中的多尺度旋转框合并成一个单独的列表
+        # rois是一个包含多个图像和多个尺度的旋转框的列表，torch.cat用于将这些旋转框连接
 
         for lvl in range(num_levels):
             bbox_pred = bbox_preds[lvl]
@@ -351,41 +358,3 @@ class R3RefineHead(RotatedRetinaHead):
             for img_id in range(num_imgs):
                 bboxes_list[img_id].append(refined_bbox[img_id].detach())
         return bboxes_list
-
-
-if __name__ == '__main__':
-    """
-    调试R3Head部分
-    """
-    # 创建随机数据以进行调试
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-    # 假设有 1 张图像，3 个特征层，每层的尺寸为 (H=10, W=10)
-    num_imgs = 1
-    num_levels = 3
-    H, W = 10, 10
-    num_anchors = 9
-    cls_out_channels = 80  # 80 类
-
-    # 生成随机的 cls_scores 和 bbox_preds
-    cls_scores = [
-        torch.randn(num_imgs, num_anchors * cls_out_channels, H, W).to(device)
-        for _ in range(num_levels)
-    ]
-
-    bbox_preds = [
-        torch.randn(num_imgs, num_anchors * 5, H, W).to(device)
-        for _ in range(num_levels)
-    ]
-
-    # 创建 R3Head 实例并测试
-    r3_head = R3Head(num_anchors=num_anchors, cls_out_channels=cls_out_channels).to(device)
-
-    # 调用 filter_bboxes 方法并查看输出
-    bboxes_list = r3_head.filter_bboxes(cls_scores, bbox_preds)
-
-    # 打印输出，检查是否正确
-    for idx, bboxes in enumerate(bboxes_list):
-        print(f"Image {idx} bounding boxes:")
-        for bbox in bboxes:
-            print(bbox.shape)  # 打印边界框的形状

@@ -115,6 +115,7 @@ mmrotate/testing/_utils.py
 mmrotate/utils/__init__.py
 mmrotate/utils/collect_env.py
 mmrotate/utils/misc.py
+mmrotate/utils/misc_ori.py
 mmrotate/utils/setup_env.py
 mmrotate/utils/patch/__init__.py
 mmrotate/utils/patch/merge_results.py

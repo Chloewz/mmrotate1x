@@ -11,3 +11,9 @@ python tools/analysis_tools/analyze_logs.py plot_curve /mnt/d/exp/sodaa_sob/a600
 
 # SODAA R3Det
 python tools/train.py --config configs/sodaa-benchmarks/r3det-refine-oc_r50_fpn_1x_dota.py --work-dir /mnt/d/exp/sodaa_sob/4060/r3det_sodaa
+
+# SODAA featmap_vis
+python tools/featmap_vis_demo.py /mnt/d/exp/sodaa_sob/featmap_vis_test/00035__800__0___1985.jpg configs/sodaa-benchmarks/rotated-retinanet-rbox-le90_r50_fpn_1x_dota.py /mnt/d/exp/sodaa_sob/featmap_vis_test/epoch_12.pth --target-layers head --channel-reduction select_max --out-dir /mnt/d/exp/sodaa_sob/featmap_vis_test/out_bbox_head/
+
+# SODAA RetinaNet Test
+python tools/test.py configs/sodaa-benchmarks/rotated-retinanet-rbox-le90_r50_fpn_1x_dota.py /mnt/d/exp/sodaa_sob/a6000result/1107_retinanet/epoch_12.pth --work-dir /mnt/d/exp/sodaa_sob/a6000result/1107_retinanet/work_dir --show-dir /mnt/d/exp/sodaa_sob/a6000result/1107_retinanet/vis_result_all/

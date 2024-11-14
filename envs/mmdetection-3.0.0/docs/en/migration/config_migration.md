@@ -1,14 +1,22 @@
 # Migrate Configuration File from MMDetection 2.x to 3.x
 
-The configuration file of MMDetection 3.x has undergone significant changes in comparison to the 2.x version. This document explains how to migrate 2.x configuration files to 3.x.
+The configuration file of MMDetection 3.x has undergone significant changes in comparison to the 2.x version. This
+document explains how to migrate 2.x configuration files to 3.x.
 
-In the previous tutorial [Learn about Configs](../user_guides/config.md), we used Mask R-CNN as an example to introduce the configuration file structure of MMDetection 3.x. Here, we will follow the same structure to demonstrate how to migrate 2.x configuration files to 3.x.
+In the previous tutorial [Learn about Configs](../user_guides/config.md), we used Mask R-CNN as an example to introduce
+the configuration file structure of MMDetection 3.x. Here, we will follow the same structure to demonstrate how to
+migrate 2.x configuration files to 3.x.
 
 ## Model Configuration
 
-There have been no major changes to the model configuration in 3.x compared to 2.x. For the model's backbone, neck, head, as well as train_cfg and test_cfg, the parameters remain the same as in version 2.x.
+There have been no major changes to the model configuration in 3.x compared to 2.x. For the model's backbone, neck,
+head, as well as train_cfg and test_cfg, the parameters remain the same as in version 2.x.
 
-On the other hand, we have added the `DataPreprocessor` module in MMDetection 3.x. The configuration for the `DataPreprocessor` module is located in `model.data_preprocessor`. It is used to preprocess the input data, such as normalizing input images and padding images of different sizes into batches, and loading images from memory to VRAM. This configuration replaces the `Normalize` and `Pad` modules in `train_pipeline` and `test_pipeline` of the earlier version.
+On the other hand, we have added the `DataPreprocessor` module in MMDetection 3.x. The configuration for the
+`DataPreprocessor` module is located in `model.data_preprocessor`. It is used to preprocess the input data, such as
+normalizing input images and padding images of different sizes into batches, and loading images from memory to VRAM.
+This configuration replaces the `Normalize` and `Pad` modules in `train_pipeline` and `test_pipeline` of the earlier
+version.
 
 <table class="docutils">
 <tr>
@@ -55,19 +63,25 @@ model = dict(
 
 ## Dataset and Evaluator Configuration
 
-The dataset and evaluator configurations have undergone major changes compared to version 2.x. We will introduce how to migrate from version 2.x to version 3.x from three aspects: Dataloader and Dataset, Data transform pipeline, and Evaluator configuration.
+The dataset and evaluator configurations have undergone major changes compared to version 2.x. We will introduce how to
+migrate from version 2.x to version 3.x from three aspects: Dataloader and Dataset, Data transform pipeline, and
+Evaluator configuration.
 
 ### Dataloader and Dataset Configuration
 
 In the new version, we set the data loading settings consistent with PyTorch's official DataLoader,
 making it easier for users to understand and get started with.
-We put the data loading settings for training, validation, and testing separately in `train_dataloader`, `val_dataloader`, and `test_dataloader`.
+We put the data loading settings for training, validation, and testing separately in `train_dataloader`,
+`val_dataloader`, and `test_dataloader`.
 Users can set different parameters for these dataloaders.
-The input parameters are basically the same as those required by [PyTorch DataLoader](https://pytorch.org/docs/stable/data.html?highlight=dataloader#torch.utils.data.DataLoader).
+The input parameters are basically the same as those required
+by [PyTorch DataLoader](https://pytorch.org/docs/stable/data.html?highlight=dataloader#torch.utils.data.DataLoader).
 
-This way, we put the unconfigurable parameters in version 2.x, such as `sampler`, `batch_sampler`, and `persistent_workers`, in the configuration file, so that users can set dataloader parameters more flexibly.
+This way, we put the unconfigurable parameters in version 2.x, such as `sampler`, `batch_sampler`, and
+`persistent_workers`, in the configuration file, so that users can set dataloader parameters more flexibly.
 
-Users can set the dataset configuration through `train_dataloader.dataset`, `val_dataloader.dataset`, and `test_dataloader.dataset`, which correspond to `data.train`, `data.val`, and `data.test` in version 2.x.
+Users can set the dataset configuration through `train_dataloader.dataset`, `val_dataloader.dataset`, and
+`test_dataloader.dataset`, which correspond to `data.train`, `data.val`, and `data.test` in version 2.x.
 
 <table class="docutils">
 <tr>
@@ -138,11 +152,17 @@ test_dataloader = val_dataloader  # The configuration of the testing dataloader 
 
 ### Data Transform Pipeline Configuration
 
-As mentioned earlier, we have separated the normalization and padding configurations for images from the `train_pipeline` and `test_pipeline`, and have placed them in `model.data_preprocessor` instead. Hence, in the 3.x version of the pipeline, we no longer require the `Normalize` and `Pad` transforms.
+As mentioned earlier, we have separated the normalization and padding configurations for images from the
+`train_pipeline` and `test_pipeline`, and have placed them in `model.data_preprocessor` instead. Hence, in the 3.x
+version of the pipeline, we no longer require the `Normalize` and `Pad` transforms.
 
-At the same time, we have also refactored the transform responsible for packing the data format, and have merged the `Collect` and `DefaultFormatBundle` transforms into `PackDetInputs`. This transform is responsible for packing the data from the data pipeline into the input format of the model. For more details on the input format conversion, please refer to the [data flow documentation](../advanced_guides/data_flow.md).
+At the same time, we have also refactored the transform responsible for packing the data format, and have merged the
+`Collect` and `DefaultFormatBundle` transforms into `PackDetInputs`. This transform is responsible for packing the data
+from the data pipeline into the input format of the model. For more details on the input format conversion, please refer
+to the [data flow documentation](../advanced_guides/data_flow.md).
 
-Below, we will use the `train_pipeline` of Mask R-CNN as an example, to demonstrate how to migrate from the 2.x configuration to the 3.x configuration:
+Below, we will use the `train_pipeline` of Mask R-CNN as an example, to demonstrate how to migrate from the 2.x
+configuration to the 3.x configuration:
 
 <table class="docutils">
 <tr>
@@ -183,9 +203,12 @@ train_pipeline = [
 </tr>
 </table>
 
-For the `test_pipeline`, apart from removing the `Normalize` and `Pad` transforms, we have also separated the data augmentation for testing (TTA) from the normal testing process, and have removed `MultiScaleFlipAug`. For more information on how to use the new TTA version, please refer to the [TTA documentation](../advanced_guides/tta.md).
+For the `test_pipeline`, apart from removing the `Normalize` and `Pad` transforms, we have also separated the data
+augmentation for testing (TTA) from the normal testing process, and have removed `MultiScaleFlipAug`. For more
+information on how to use the new TTA version, please refer to the [TTA documentation](../advanced_guides/tta.md).
 
-Below, we will again use the `test_pipeline` of Mask R-CNN as an example, to demonstrate how to migrate from the 2.x configuration to the 3.x configuration:
+Below, we will again use the `test_pipeline` of Mask R-CNN as an example, to demonstrate how to migrate from the 2.x
+configuration to the 3.x configuration:
 
 <table class="docutils">
 <tr>
@@ -230,7 +253,8 @@ test_pipeline = [
 </tr>
 </table>
 
-In addition, we have also refactored some data augmentation transforms. The following table lists the mapping between the transforms used in the 2.x version and the 3.x version:
+In addition, we have also refactored some data augmentation transforms. The following table lists the mapping between
+the transforms used in the 2.x version and the 3.x version:
 
 <table class="docutils">
 <thead>
@@ -343,8 +367,10 @@ dict(type='RandomFlip', prob=0.5)
 
 ### 评测器配置
 
-In version 3.x, model accuracy evaluation is no longer tied to the dataset, but is instead accomplished through the use of an Evaluator.
-The Evaluator configuration is divided into two parts: `val_evaluator` and `test_evaluator`. The `val_evaluator` is used for validation dataset evaluation, while the `test_evaluator` is used for testing dataset evaluation.
+In version 3.x, model accuracy evaluation is no longer tied to the dataset, but is instead accomplished through the use
+of an Evaluator.
+The Evaluator configuration is divided into two parts: `val_evaluator` and `test_evaluator`. The `val_evaluator` is used
+for validation dataset evaluation, while the `test_evaluator` is used for testing dataset evaluation.
 This corresponds to the `evaluation` field in version 2.x.
 
 The following table shows the corresponding relationship between Evaluators in version 2.x and 3.x.
@@ -554,7 +580,9 @@ optim_wrapper = dict(  # Configuration for the optimizer wrapper
 </tr>
 </table>
 
-The configuration for learning rate is also moved from the `lr_config` field to the `param_scheduler` field. The `param_scheduler` configuration is more similar to PyTorch's learning rate scheduler and more flexible. The following table shows the correspondences for learning rate configuration between 2.x version and 3.x version:
+The configuration for learning rate is also moved from the `lr_config` field to the `param_scheduler` field. The
+`param_scheduler` configuration is more similar to PyTorch's learning rate scheduler and more flexible. The following
+table shows the correspondences for learning rate configuration between 2.x version and 3.x version:
 
 <table class="docutils">
 <tr>
@@ -600,7 +628,8 @@ param_scheduler = [
 </tr>
 </table>
 
-For information on how to migrate other learning rate adjustment policies, please refer to the [learning rate migration document of MMEngine](https://mmengine.readthedocs.io/zh_CN/latest/migration/param_scheduler.html).
+For information on how to migrate other learning rate adjustment policies, please refer to
+the [learning rate migration document of MMEngine](https://mmengine.readthedocs.io/zh_CN/latest/migration/param_scheduler.html).
 
 ## Migration of Other Configurations
 
@@ -687,7 +716,9 @@ default_hooks = dict(
 
 ### Logging Configuration
 
-In MMDetection 3.x, the logging and visualization of the log are carried out respectively by the logger and visualizer in MMEngine. The following table shows the comparison between the configuration of printing logs and visualizing logs in MMDetection 2.x and 3.x.
+In MMDetection 3.x, the logging and visualization of the log are carried out respectively by the logger and visualizer
+in MMEngine. The following table shows the comparison between the configuration of printing logs and visualizing logs in
+MMDetection 2.x and 3.x.
 
 <table class="docutils">
 <thead>
@@ -768,7 +799,8 @@ visualizer = dict(
 </tbody>
 </table>
 
-For visualization-related tutorials, please refer to [Visualization Tutorial](../user_guides/visualization.md) of MMDetection.
+For visualization-related tutorials, please refer to [Visualization Tutorial](../user_guides/visualization.md) of
+MMDetection.
 
 ### Runtime Configuration
 

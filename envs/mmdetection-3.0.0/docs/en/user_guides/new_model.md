@@ -1,6 +1,9 @@
 # Train with customized models and standard datasets
 
-In this note, you will know how to train, test and inference your own customized models under standard datasets. We use the cityscapes dataset to train a customized Cascade Mask R-CNN R50 model as an example to demonstrate the whole process, which using [`AugFPN`](https://github.com/Gus-Guo/AugFPN) to replace the default `FPN` as neck, and add `Rotate` or `TranslateX` as training-time auto augmentation.
+In this note, you will know how to train, test and inference your own customized models under standard datasets. We use
+the cityscapes dataset to train a customized Cascade Mask R-CNN R50 model as an example to demonstrate the whole
+process, which using [`AugFPN`](https://github.com/Gus-Guo/AugFPN) to replace the default `FPN` as neck, and add
+`Rotate` or `TranslateX` as training-time auto augmentation.
 
 The basic steps are as below:
 
@@ -57,11 +60,14 @@ python tools/dataset_converters/cityscapes.py ./data/cityscapes --nproc 8 --out-
 ```
 
 Currently, the config files in `cityscapes` use COCO pre-trained weights to initialize.
-You could download the pre-trained models in advance if the network is unavailable or slow, otherwise, it would cause errors at the beginning of training.
+You could download the pre-trained models in advance if the network is unavailable or slow, otherwise, it would cause
+errors at the beginning of training.
 
 ## Prepare your own customized model
 
-The second step is to use your own module or training setting. Assume that we want to implement a new neck called `AugFPN` to replace with the default `FPN` under the existing detector Cascade Mask R-CNN R50. The following implements `AugFPN` under MMDetection.
+The second step is to use your own module or training setting. Assume that we want to implement a new neck called
+`AugFPN` to replace with the default `FPN` under the existing detector Cascade Mask R-CNN R50. The following implements
+`AugFPN` under MMDetection.
 
 ### 1. Define a new neck (e.g. AugFPN)
 
@@ -117,11 +123,17 @@ neck=dict(
     num_outs=5)
 ```
 
-For more detailed usages about customizing your own models (e.g. implement a new backbone, head, loss, etc) and runtime training settings (e.g. define a new optimizer, use gradient clip, customize training schedules and hooks, etc), please refer to the guideline [Customize Models](../advanced_guides/customize_models.md) and [Customize Runtime Settings](../advanced_guides/customize_runtime.md) respectively.
+For more detailed usages about customizing your own models (e.g. implement a new backbone, head, loss, etc) and runtime
+training settings (e.g. define a new optimizer, use gradient clip, customize training schedules and hooks, etc), please
+refer to the guideline [Customize Models](../advanced_guides/customize_models.md)
+and [Customize Runtime Settings](../advanced_guides/customize_runtime.md) respectively.
 
 ## Prepare a config
 
-The third step is to prepare a config for your own training setting. Assume that we want to add `AugFPN` and `Rotate` or `Translate` augmentation to existing Cascade Mask R-CNN R50 to train the cityscapes dataset, and assume the config is under directory `configs/cityscapes/` and named as `cascade-mask-rcnn_r50_augfpn_autoaug-10e_cityscapes.py`, the config is as below.
+The third step is to prepare a config for your own training setting. Assume that we want to add `AugFPN` and `Rotate` or
+`Translate` augmentation to existing Cascade Mask R-CNN R50 to train the cityscapes dataset, and assume the config is
+under directory `configs/cityscapes/` and named as `cascade-mask-rcnn_r50_augfpn_autoaug-10e_cityscapes.py`, the config
+is as below.
 
 ```python
 # The new config inherits the base configs to highlight the necessary modification

@@ -2,7 +2,8 @@
 
 ## Introduction
 
-We provide tools to test object detection and instance segmentation models on the image corruption benchmark defined in [Benchmarking Robustness in Object Detection: Autonomous Driving when Winter is Coming](https://arxiv.org/abs/1907.07484).
+We provide tools to test object detection and instance segmentation models on the image corruption benchmark defined
+in [Benchmarking Robustness in Object Detection: Autonomous Driving when Winter is Coming](https://arxiv.org/abs/1907.07484).
 This page provides basic tutorials how to use the benchmark.
 
 ```latex
@@ -22,10 +23,13 @@ This page provides basic tutorials how to use the benchmark.
 
 ## About the benchmark
 
-To submit results to the benchmark please visit the [benchmark homepage](https://github.com/bethgelab/robust-detection-benchmark)
+To submit results to the benchmark please visit
+the [benchmark homepage](https://github.com/bethgelab/robust-detection-benchmark)
 
 The benchmark is modelled after the [imagenet-c benchmark](https://github.com/hendrycks/robustness) which was originally
-published in [Benchmarking Neural Network Robustness to Common Corruptions and Perturbations](https://arxiv.org/abs/1903.12261) (ICLR 2019) by Dan Hendrycks and Thomas Dietterich.
+published
+in [Benchmarking Neural Network Robustness to Common Corruptions and Perturbations](https://arxiv.org/abs/1903.12261) (
+ICLR 2019) by Dan Hendrycks and Thomas Dietterich.
 
 The image corruption functions are included in this library but can be installed separately using:
 
@@ -35,11 +39,13 @@ pip install imagecorruptions
 
 Compared to imagenet-c a few changes had to be made to handle images of arbitrary size and greyscale images.
 We also modified the 'motion blur' and 'snow' corruptions to remove dependency from a linux specific library,
-which would have to be installed separately otherwise. For details please refer to the [imagecorruptions repository](https://github.com/bethgelab/imagecorruptions).
+which would have to be installed separately otherwise. For details please refer to
+the [imagecorruptions repository](https://github.com/bethgelab/imagecorruptions).
 
 ## Inference with pretrained models
 
-We provide a testing script to evaluate a models performance on any combination of the corruptions provided in the benchmark.
+We provide a testing script to evaluate a models performance on any combination of the corruptions provided in the
+benchmark.
 
 ### Test a dataset
 
@@ -93,7 +99,7 @@ python tools/analysis_tools/test_robustness.py ${CONFIG_FILE} ${CHECKPOINT_FILE}
 The results on COCO 2017val are shown in the below table.
 
 |        Model        |      Backbone       |  Style  | Lr schd | box AP clean | box AP corr. | box % | mask AP clean | mask AP corr. | mask % |
-| :-----------------: | :-----------------: | :-----: | :-----: | :----------: | :----------: | :---: | :-----------: | :-----------: | :----: |
+|:-------------------:|:-------------------:|:-------:|:-------:|:------------:|:------------:|:-----:|:-------------:|:-------------:|:------:|
 |    Faster R-CNN     |      R-50-FPN       | pytorch |   1x    |     36.3     |     18.2     | 50.2  |       -       |       -       |   -    |
 |    Faster R-CNN     |      R-101-FPN      | pytorch |   1x    |     38.5     |     20.9     | 54.2  |       -       |       -       |   -    |
 |    Faster R-CNN     |   X-101-32x4d-FPN   | pytorch |   1x    |     40.1     |     22.3     | 55.5  |       -       |       -       |   -    |

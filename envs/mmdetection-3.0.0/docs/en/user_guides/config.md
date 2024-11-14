@@ -1,14 +1,20 @@
 # Learn about Configs
 
-MMDetection and other OpenMMLab repositories use [MMEngine's config system](https://mmengine.readthedocs.io/en/latest/advanced_tutorials/config.html). It has a modular and inheritance design, which is convenient to conduct various experiments.
+MMDetection and other OpenMMLab repositories
+use [MMEngine's config system](https://mmengine.readthedocs.io/en/latest/advanced_tutorials/config.html). It has a
+modular and inheritance design, which is convenient to conduct various experiments.
 
 ## Config file content
 
-MMDetection uses a modular design, all modules with different functions can be configured through the config. Taking Mask R-CNN as an example, we will introduce each field in the config according to different function modules:
+MMDetection uses a modular design, all modules with different functions can be configured through the config. Taking
+Mask R-CNN as an example, we will introduce each field in the config according to different function modules:
 
 ### Model config
 
-In MMDetection's config, we use `model` to set up detection algorithm components. In addition to neural network components such as `backbone`, `neck`, etc, it also requires `data_preprocessor`, `train_cfg`, and `test_cfg`. `data_preprocessor` is responsible for processing a batch of data output by dataloader. `train_cfg`, and `test_cfg` in the model config are for training and testing hyperparameters of the components.
+In MMDetection's config, we use `model` to set up detection algorithm components. In addition to neural network
+components such as `backbone`, `neck`, etc, it also requires `data_preprocessor`, `train_cfg`, and `test_cfg`.
+`data_preprocessor` is responsible for processing a batch of data output by dataloader. `train_cfg`, and `test_cfg` in
+the model config are for training and testing hyperparameters of the components.
 
 ```python
 model = dict(
@@ -171,7 +177,10 @@ model = dict(
 
 ### Dataset and evaluator config
 
-[Dataloaders](https://mmengine.readthedocs.io/en/latest/tutorials/dataset.html) are required for the training, validation, and testing of the [runner](https://mmengine.readthedocs.io/en/latest/tutorials/runner.html). Dataset and data pipeline need to be set to build the dataloader. Due to the complexity of this part, we use intermediate variables to simplify the writing of dataloader configs.
+[Dataloaders](https://mmengine.readthedocs.io/en/latest/tutorials/dataset.html) are required for the training,
+validation, and testing of the [runner](https://mmengine.readthedocs.io/en/latest/tutorials/runner.html). Dataset and
+data pipeline need to be set to build the dataloader. Due to the complexity of this part, we use intermediate variables
+to simplify the writing of dataloader configs.
 
 ```python
 dataset_type = 'CocoDataset'  # Dataset type, this will be used to define the dataset
@@ -238,7 +247,9 @@ val_dataloader = dict(  # Validation dataloader config
 test_dataloader = val_dataloader  # Testing dataloader config
 ```
 
-[Evaluators](https://mmengine.readthedocs.io/en/latest/tutorials/evaluation.html) are used to compute the metrics of the trained model on the validation and testing datasets. The config of evaluators consists of one or a list of metric configs:
+[Evaluators](https://mmengine.readthedocs.io/en/latest/tutorials/evaluation.html) are used to compute the metrics of the
+trained model on the validation and testing datasets. The config of evaluators consists of one or a list of metric
+configs:
 
 ```python
 val_evaluator = dict(  # Validation evaluator config
@@ -250,7 +261,9 @@ val_evaluator = dict(  # Validation evaluator config
 test_evaluator = val_evaluator  # Testing evaluator config
 ```
 
-Since the test dataset has no annotation files, the test_dataloader and test_evaluator config in MMDetection are generally equal to the val's. If you want to save the detection results on the test dataset, you can write the config like this:
+Since the test dataset has no annotation files, the test_dataloader and test_evaluator config in MMDetection are
+generally equal to the val's. If you want to save the detection results on the test dataset, you can write the config
+like this:
 
 ```python
 # inference on test dataset and
@@ -292,7 +305,9 @@ test_cfg = dict(type='TestLoop')  # The testing loop type
 
 ### Optimization config
 
-`optim_wrapper` is the field to configure optimization-related settings. The optimizer wrapper not only provides the functions of the optimizer, but also supports functions such as gradient clipping, mixed precision training, etc. Find more in [optimizer wrapper tutorial](https://mmengine.readthedocs.io/en/latest/tutorials/optim_wrapper.html).
+`optim_wrapper` is the field to configure optimization-related settings. The optimizer wrapper not only provides the
+functions of the optimizer, but also supports functions such as gradient clipping, mixed precision training, etc. Find
+more in [optimizer wrapper tutorial](https://mmengine.readthedocs.io/en/latest/tutorials/optim_wrapper.html).
 
 ```python
 optim_wrapper = dict(  # Optimizer wrapper config
@@ -306,7 +321,10 @@ optim_wrapper = dict(  # Optimizer wrapper config
     )
 ```
 
-`param_scheduler` is a field that configures methods of adjusting optimization hyperparameters such as learning rate and momentum. Users can combine multiple schedulers to create a desired parameter adjustment strategy. Find more in [parameter scheduler tutorial](https://mmengine.readthedocs.io/en/latest/tutorials/param_scheduler.html) and [parameter scheduler API documents](https://mmengine.readthedocs.io/en/latest/api/generated/mmengine.optim._ParamScheduler.html#mmengine.optim._ParamScheduler)
+`param_scheduler` is a field that configures methods of adjusting optimization hyperparameters such as learning rate and
+momentum. Users can combine multiple schedulers to create a desired parameter adjustment strategy. Find more
+in [parameter scheduler tutorial](https://mmengine.readthedocs.io/en/latest/tutorials/param_scheduler.html)
+and [parameter scheduler API documents](https://mmengine.readthedocs.io/en/latest/api/generated/mmengine.optim._ParamScheduler.html#mmengine.optim._ParamScheduler)
 
 ```python
 param_scheduler = [
@@ -330,9 +348,12 @@ param_scheduler = [
 
 ### Hook config
 
-Users can attach Hooks to training, validation, and testing loops to insert some operations during running. There are two different hook fields, one is `default_hooks` and the other is `custom_hooks`.
+Users can attach Hooks to training, validation, and testing loops to insert some operations during running. There are
+two different hook fields, one is `default_hooks` and the other is `custom_hooks`.
 
-`default_hooks` is a dict of hook configs, and they are the hooks must be required at the runtime. They have default priority which should not be modified. If not set, runner will use the default values. To disable a default hook, users can set its config to `None`. Find more in [HOOK](https://mmengine.readthedocs.io/en/latest/tutorials/hook.html).
+`default_hooks` is a dict of hook configs, and they are the hooks must be required at the runtime. They have default
+priority which should not be modified. If not set, runner will use the default values. To disable a default hook, users
+can set its config to `None`. Find more in [HOOK](https://mmengine.readthedocs.io/en/latest/tutorials/hook.html).
 
 ```python
 default_hooks = dict(
@@ -379,8 +400,10 @@ resume = False  # Whether to resume from the checkpoint defined in `load_from`. 
 ## Iter-based config
 
 MMEngine's Runner also provides an iter-based training loop except for epoch-based.
-To use iter-based training, users should modify the `train_cfg`, `param_scheduler`, `train_dataloader`, `default_hooks`, and `log_processor`.
-Here is an example of changing an epoch-based RetinaNet config to iter-based: `configs/retinanet/retinanet_r50_fpn_90k_coco.py`
+To use iter-based training, users should modify the `train_cfg`, `param_scheduler`, `train_dataloader`, `default_hooks`,
+and `log_processor`.
+Here is an example of changing an epoch-based RetinaNet config to iter-based:
+`configs/retinanet/retinanet_r50_fpn_90k_coco.py`
 
 ```python
 # Iter-based training config
@@ -417,17 +440,23 @@ log_processor = dict(by_epoch=False)
 ## Config file inheritance
 
 There are 4 basic component types under `config/_base_`, dataset, model, schedule, default_runtime.
-Many methods could be easily constructed with one of these models like Faster R-CNN, Mask R-CNN, Cascade R-CNN, RPN, SSD.
+Many methods could be easily constructed with one of these models like Faster R-CNN, Mask R-CNN, Cascade R-CNN, RPN,
+SSD.
 The configs that are composed by components from `_base_` are called the _primitive_.
 
-For all configs under the same folder, it is recommended to have only **one** _primitive_ config. All other configs should inherit from the _primitive_ config. In this way, the maximum of inheritance level is 3.
+For all configs under the same folder, it is recommended to have only **one** _primitive_ config. All other configs
+should inherit from the _primitive_ config. In this way, the maximum of inheritance level is 3.
 
 For easy understanding, we recommend contributors to inherit from existing methods.
-For example, if some modification is made based on Faster R-CNN, users may first inherit the basic Faster R-CNN structure by specifying `_base_ = ../faster_rcnn/faster-rcnn_r50_fpn_1x_coco.py`, then modify the necessary fields in the config files.
+For example, if some modification is made based on Faster R-CNN, users may first inherit the basic Faster R-CNN
+structure by specifying `_base_ = ../faster_rcnn/faster-rcnn_r50_fpn_1x_coco.py`, then modify the necessary fields in
+the config files.
 
-If you are building an entirely new method that does not share the structure with any of the existing methods, you may create a folder `xxx_rcnn` under `configs`,
+If you are building an entirely new method that does not share the structure with any of the existing methods, you may
+create a folder `xxx_rcnn` under `configs`,
 
-Please refer to [mmengine config tutorial](https://mmengine.readthedocs.io/en/latest/advanced_tutorials/config.html) for detailed documentation.
+Please refer to [mmengine config tutorial](https://mmengine.readthedocs.io/en/latest/advanced_tutorials/config.html) for
+detailed documentation.
 
 By setting the `_base_` field, we can set which files the current configuration file inherits from.
 
@@ -447,12 +476,14 @@ _base_ = [
 ]
 ```
 
-If you wish to inspect the config file, you may run `python tools/misc/print_config.py /PATH/TO/CONFIG` to see the complete config.
+If you wish to inspect the config file, you may run `python tools/misc/print_config.py /PATH/TO/CONFIG` to see the
+complete config.
 
 ### Ignore some fields in the base configs
 
 Sometimes, you may set `_delete_=True` to ignore some of the fields in base configs.
-You may refer to [mmengine config tutorial](https://mmengine.readthedocs.io/en/latest/advanced_tutorials/config.html) for a simple illustration.
+You may refer to [mmengine config tutorial](https://mmengine.readthedocs.io/en/latest/advanced_tutorials/config.html)
+for a simple illustration.
 
 In MMDetection, for example, to change the backbone of Mask R-CNN with the following config.
 
@@ -516,8 +547,10 @@ The `_delete_=True` would replace all old keys in `backbone` field with new keys
 ### Use intermediate variables in configs
 
 Some intermediate variables are used in the configs files, like `train_pipeline`/`test_pipeline` in datasets.
-It's worth noting that when modifying intermediate variables in the children configs, users need to pass the intermediate variables into corresponding fields again.
-For example, we would like to use a multi-scale strategy to train a Mask R-CNN. `train_pipeline`/`test_pipeline` are intermediate variables we would like to modify.
+It's worth noting that when modifying intermediate variables in the children configs, users need to pass the
+intermediate variables into corresponding fields again.
+For example, we would like to use a multi-scale strategy to train a Mask R-CNN. `train_pipeline`/`test_pipeline` are
+intermediate variables we would like to modify.
 
 ```python
 _base_ = './mask-rcnn_r50_fpn_1x_coco.py'
@@ -546,7 +579,8 @@ test_dataloader = dict(dataset=dict(pipeline=test_pipeline))
 
 We first define the new `train_pipeline`/`test_pipeline` and pass them into dataloader fields.
 
-Similarly, if we would like to switch from `SyncBN` to `BN` or `MMSyncBN`, we need to substitute every `norm_cfg` in the config.
+Similarly, if we would like to switch from `SyncBN` to `BN` or `MMSyncBN`, we need to substitute every `norm_cfg` in the
+config.
 
 ```python
 _base_ = './mask-rcnn_r50_fpn_1x_coco.py'
@@ -559,7 +593,8 @@ model = dict(
 
 ### Reuse variables in \_base\_ file
 
-If the users want to reuse the variables in the base file, they can get a copy of the corresponding variable by using `{{_base_.xxx}}`. E.g:
+If the users want to reuse the variables in the base file, they can get a copy of the corresponding variable by using
+`{{_base_.xxx}}`. E.g:
 
 ```python
 _base_ = './mask-rcnn_r50_fpn_1x_coco.py'
@@ -569,23 +604,29 @@ a = {{_base_.model}} # Variable `a` is equal to the `model` defined in `_base_`
 
 ## Modify config through script arguments
 
-When submitting jobs using `tools/train.py` or `tools/test.py`, you may specify `--cfg-options` to in-place modify the config.
+When submitting jobs using `tools/train.py` or `tools/test.py`, you may specify `--cfg-options` to in-place modify the
+config.
 
 - Update config keys of dict chains.
 
   The config options can be specified following the order of the dict keys in the original config.
-  For example, `--cfg-options model.backbone.norm_eval=False` changes the all BN modules in model backbones to `train` mode.
+  For example, `--cfg-options model.backbone.norm_eval=False` changes the all BN modules in model backbones to `train`
+  mode.
 
 - Update keys inside a list of configs.
 
-  Some config dicts are composed as a list in your config. For example, the training pipeline `train_dataloader.dataset.pipeline` is normally a list
-  e.g. `[dict(type='LoadImageFromFile'), ...]`. If you want to change `'LoadImageFromFile'` to `'LoadImageFromNDArray'` in the pipeline,
+  Some config dicts are composed as a list in your config. For example, the training pipeline
+  `train_dataloader.dataset.pipeline` is normally a list
+  e.g. `[dict(type='LoadImageFromFile'), ...]`. If you want to change `'LoadImageFromFile'` to `'LoadImageFromNDArray'`
+  in the pipeline,
   you may specify `--cfg-options data.train.pipeline.0.type=LoadImageFromNDArray`.
 
 - Update values of list/tuples.
 
-  If the value to be updated is a list or a tuple. For example, the config file normally sets `model.data_preprocessor.mean=[123.675, 116.28, 103.53]`. If you want to
-  change the mean values, you may specify `--cfg-options model.data_preprocessor.mean="[127,127,127]"`. Note that the quotation mark `"` is necessary to
+  If the value to be updated is a list or a tuple. For example, the config file normally sets
+  `model.data_preprocessor.mean=[123.675, 116.28, 103.53]`. If you want to
+  change the mean values, you may specify `--cfg-options model.data_preprocessor.mean="[127,127,127]"`. Note that the
+  quotation mark `"` is necessary to
   support list/tuple data types, and **NO** white space is allowed inside the quotation marks in the specified value.
 
 ## Config name style
@@ -596,17 +637,25 @@ We follow the below style to name config files. Contributors are advised to foll
 {algorithm name}_{model component names [component1]_[component2]_[...]}_{training settings}_{training dataset information}_{testing dataset information}.py
 ```
 
-The file name is divided into five parts. All parts and components are connected with `_` and words of each part or component should be connected with `-`.
+The file name is divided into five parts. All parts and components are connected with `_` and words of each part or
+component should be connected with `-`.
 
-- `{algorithm name}`: The name of the algorithm. It can be a detector name such as `faster-rcnn`, `mask-rcnn`, etc. Or can be a semi-supervised or knowledge-distillation algorithm such as `soft-teacher`, `lad`. etc.
-- `{model component names}`: Names of the components used in the algorithm such as backbone, neck, etc. For example, `r50-caffe_fpn_gn-head` means using caffe-style ResNet50, FPN and detection head with Group Norm in the algorithm.
-- `{training settings}`: Information of training settings such as batch size, augmentations, loss trick, scheduler, and epochs/iterations. For example: `4xb4-mixup-giou-coslr-100e` means using 8-gpus x 4-images-per-gpu, mixup augmentation, GIoU loss, cosine annealing learning rate, and train 100 epochs.
+- `{algorithm name}`: The name of the algorithm. It can be a detector name such as `faster-rcnn`, `mask-rcnn`, etc. Or
+  can be a semi-supervised or knowledge-distillation algorithm such as `soft-teacher`, `lad`. etc.
+- `{model component names}`: Names of the components used in the algorithm such as backbone, neck, etc. For example,
+  `r50-caffe_fpn_gn-head` means using caffe-style ResNet50, FPN and detection head with Group Norm in the algorithm.
+- `{training settings}`: Information of training settings such as batch size, augmentations, loss trick, scheduler, and
+  epochs/iterations. For example: `4xb4-mixup-giou-coslr-100e` means using 8-gpus x 4-images-per-gpu, mixup
+  augmentation, GIoU loss, cosine annealing learning rate, and train 100 epochs.
   Some abbreviations:
-  - `{gpu x batch_per_gpu}`: GPUs and samples per GPU. `bN` indicates N batch size per GPU. E.g. `4xb4` is the short term of 4-GPUs x 4-images-per-GPU. And `8xb2` is used by default if not mentioned.
-  - `{schedule}`: training schedule, options are `1x`, `2x`, `20e`, etc.
-    `1x` and `2x` means 12 epochs and 24 epochs respectively.
-    `20e` is adopted in cascade models, which denotes 20 epochs.
-    For `1x`/`2x`, the initial learning rate decays by a factor of 10 at the 8/16th and 11/22th epochs.
-    For `20e`, the initial learning rate decays by a factor of 10 at the 16th and 19th epochs.
-- `{training dataset information}`: Training dataset names like `coco`, `coco-panoptic`, `cityscapes`, `voc-0712`, `wider-face`.
-- `{testing dataset information}` (optional): Testing dataset name for models trained on one dataset but tested on another. If not mentioned, it means the model was trained and tested on the same dataset type.
+    - `{gpu x batch_per_gpu}`: GPUs and samples per GPU. `bN` indicates N batch size per GPU. E.g. `4xb4` is the short
+      term of 4-GPUs x 4-images-per-GPU. And `8xb2` is used by default if not mentioned.
+    - `{schedule}`: training schedule, options are `1x`, `2x`, `20e`, etc.
+      `1x` and `2x` means 12 epochs and 24 epochs respectively.
+      `20e` is adopted in cascade models, which denotes 20 epochs.
+      For `1x`/`2x`, the initial learning rate decays by a factor of 10 at the 8/16th and 11/22th epochs.
+      For `20e`, the initial learning rate decays by a factor of 10 at the 16th and 19th epochs.
+- `{training dataset information}`: Training dataset names like `coco`, `coco-panoptic`, `cityscapes`, `voc-0712`,
+  `wider-face`.
+- `{testing dataset information}` (optional): Testing dataset name for models trained on one dataset but tested on
+  another. If not mentioned, it means the model was trained and tested on the same dataset type.

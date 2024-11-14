@@ -1,23 +1,33 @@
 # Weight initialization
 
-During training, a proper initialization strategy is beneficial to speeding up the training or obtaining a higher performance. [MMCV](https://github.com/open-mmlab/mmcv/blob/master/mmcv/cnn/utils/weight_init.py) provide some commonly used methods for initializing modules like `nn.Conv2d`. Model initialization in MMdetection mainly uses `init_cfg`. Users can initialize models with following two steps:
+During training, a proper initialization strategy is beneficial to speeding up the training or obtaining a higher
+performance. [MMCV](https://github.com/open-mmlab/mmcv/blob/master/mmcv/cnn/utils/weight_init.py) provide some commonly
+used methods for initializing modules like `nn.Conv2d`. Model initialization in MMdetection mainly uses `init_cfg`.
+Users can initialize models with following two steps:
 
-1. Define `init_cfg` for a model or its components in `model_cfg`,  but `init_cfg` of children components have higher priority and will override `init_cfg` of parents modules.
-2. Build model as usual, but call `model.init_weights()` method explicitly, and model parameters will be initialized as configuration.
+1. Define `init_cfg` for a model or its components in `model_cfg`, but `init_cfg` of children components have higher
+   priority and will override `init_cfg` of parents modules.
+2. Build model as usual, but call `model.init_weights()` method explicitly, and model parameters will be initialized as
+   configuration.
 
 The high-level workflow of initialization in MMdetection is :
 
-model_cfg(init_cfg) -> build_from_cfg -> model -> init_weight() -> initialize(self, self.init_cfg) -> children's init_weight()
+model_cfg(init_cfg) -> build_from_cfg -> model -> init_weight() -> initialize(self, self.init_cfg) -> children's
+init_weight()
 
 ### Description
 
 It is dict or list\[dict\], and contains the following keys and values:
 
 - `type` (str), containing the initializer name in `INTIALIZERS`, and followed by arguments of the initializer.
-- `layer` (str or list\[str\]), containing the names of basic layers in Pytorch or MMCV with learnable parameters that will be initialized, e.g. `'Conv2d'`,`'DeformConv2d'`.
-- `override` (dict or list\[dict\]),  containing the sub-modules that not inherit from BaseModule and whose initialization configuration is different from other layers' which are in `'layer'` key. Initializer defined in `type` will work for all layers defined in `layer`, so if sub-modules are not derived Classes of `BaseModule` but can be initialized as same ways of layers in `layer`, it does not need to use `override`. `override` contains:
-  - `type` followed by arguments of initializer;
-  - `name` to indicate sub-module which will be initialized.
+- `layer` (str or list\[str\]), containing the names of basic layers in Pytorch or MMCV with learnable parameters that
+  will be initialized, e.g. `'Conv2d'`,`'DeformConv2d'`.
+- `override` (dict or list\[dict\]), containing the sub-modules that not inherit from BaseModule and whose
+  initialization configuration is different from other layers' which are in `'layer'` key. Initializer defined in `type`
+  will work for all layers defined in `layer`, so if sub-modules are not derived Classes of `BaseModule` but can be
+  initialized as same ways of layers in `layer`, it does not need to use `override`. `override` contains:
+    - `type` followed by arguments of initializer;
+    - `name` to indicate sub-module which will be initialized.
 
 ### Initialize parameters
 
@@ -86,7 +96,8 @@ class FooModel(BaseModule)
 
    If we only define `layer`, it just initialize the layer in `layer` key.
 
-   NOTE: Value of `layer` key is the class name with attributes weights and bias of Pytorch, (so such as  `MultiheadAttention layer` is not supported).
+   NOTE: Value of `layer` key is the class name with attributes weights and bias of Pytorch, (so such as
+   `MultiheadAttention layer` is not supported).
 
 - Define `layer` key for initializing module with same configuration.
 
@@ -108,7 +119,8 @@ init_cfg = [dict(type='Constant', layer='Conv1d', val=1),
 
 2. Initialize model by `override` key
 
-- When initializing some specific part with its attribute name, we can use `override` key, and the value in `override` will ignore the value in init_cfg.
+- When initializing some specific part with its attribute name, we can use `override` key, and the value in `override`
+  will ignore the value in init_cfg.
 
   ```python
   # layers：
@@ -123,7 +135,8 @@ init_cfg = [dict(type='Constant', layer='Conv1d', val=1),
   # The module called 'reg' will be initialized with dict(type='Constant', val=3, bias=4)
   ```
 
-- If `layer` is None in init_cfg, only sub-module with the name in override will be initialized, and type and other args in override can be omitted.
+- If `layer` is None in init_cfg, only sub-module with the name in override will be initialized, and type and other args
+  in override can be omitted.
 
   ```python
   # layers：
@@ -158,4 +171,5 @@ init_cfg = [dict(type='Constant', layer='Conv1d', val=1),
                checkpoint='torchvision://resnet50')
    ```
 
-More details can refer to the documentation in [MMEngine](https://mmengine.readthedocs.io/en/latest/advanced_tutorials/initialize.html)
+More details can refer to the documentation
+in [MMEngine](https://mmengine.readthedocs.io/en/latest/advanced_tutorials/initialize.html)

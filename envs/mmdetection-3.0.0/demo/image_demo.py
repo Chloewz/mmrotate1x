@@ -37,9 +37,9 @@ def parse_args():
         'model',
         type=str,
         help='Config or checkpoint .pth file or the model name '
-        'and alias defined in metafile. The model configuration '
-        'file will try to read from .pth if the parameter is '
-        'a .pth weights file.')
+             'and alias defined in metafile. The model configuration '
+             'file will try to read from .pth if the parameter is '
+             'a .pth weights file.')
     parser.add_argument('--weights', default=None, help='Checkpoint file')
     parser.add_argument(
         '--out-dir',

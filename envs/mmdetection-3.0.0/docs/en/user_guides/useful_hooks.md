@@ -1,6 +1,9 @@
 # Useful Hooks
 
-MMDetection and MMEngine provide users with various useful hooks including log hooks, `NumClassCheckHook`, etc. This tutorial introduces the functionalities and usages of hooks implemented in MMDetection. For using hooks in MMEngine, please read the [API documentation in MMEngine](https://github.com/open-mmlab/mmengine/tree/main/docs/en/tutorials/hook.md).
+MMDetection and MMEngine provide users with various useful hooks including log hooks, `NumClassCheckHook`, etc. This
+tutorial introduces the functionalities and usages of hooks implemented in MMDetection. For using hooks in MMEngine,
+please read
+the [API documentation in MMEngine](https://github.com/open-mmlab/mmengine/tree/main/docs/en/tutorials/hook.md).
 
 ## CheckInvalidLossHook
 
@@ -8,7 +11,10 @@ MMDetection and MMEngine provide users with various useful hooks including log h
 
 ## MemoryProfilerHook
 
-[Memory profiler hook](https://github.com/open-mmlab/mmdetection/blob/main/mmdet/engine/hooks/memory_profiler_hook.py) records memory information including virtual memory, swap memory, and the memory of the current process. This hook helps grasp the memory usage of the system and discover potential memory leak bugs. To use this hook, users should install `memory_profiler` and `psutil` by `pip install memory_profiler psutil` first.
+[Memory profiler hook](https://github.com/open-mmlab/mmdetection/blob/main/mmdet/engine/hooks/memory_profiler_hook.py)
+records memory information including virtual memory, swap memory, and the memory of the current process. This hook helps
+grasp the memory usage of the system and discover potential memory leak bugs. To use this hook, users should install
+`memory_profiler` and `psutil` by `pip install memory_profiler psutil` first.
 
 ### Usage
 
@@ -44,17 +50,23 @@ The system has 250 GB (246360 MB + 9407 MB) of memory and 8 GB (5740 MB + 2452 M
 
 ## How to implement a custom hook
 
-In general, there are 20 points where hooks can be inserted from the beginning to the end of model training. The users can implement custom hooks and insert them at different points in the process of training to do what they want.
+In general, there are 20 points where hooks can be inserted from the beginning to the end of model training. The users
+can implement custom hooks and insert them at different points in the process of training to do what they want.
 
 - global points: `before_run`, `after_run`
-- points in training: `before_train`, `before_train_epoch`, `before_train_iter`, `after_train_iter`, `after_train_epoch`, `after_train`
-- points in validation: `before_val`, `before_val_epoch`, `before_val_iter`, `after_val_iter`, `after_val_epoch`, `after_val`
-- points at testing: `before_test`, `before_test_epoch`, `before_test_iter`, `after_test_iter`, `after_test_epoch`,  `after_test`
+- points in training: `before_train`, `before_train_epoch`, `before_train_iter`, `after_train_iter`,
+  `after_train_epoch`, `after_train`
+- points in validation: `before_val`, `before_val_epoch`, `before_val_iter`, `after_val_iter`, `after_val_epoch`,
+  `after_val`
+- points at testing: `before_test`, `before_test_epoch`, `before_test_iter`, `after_test_iter`, `after_test_epoch`,
+  `after_test`
 - other points: `before_save_checkpoint`, `after_save_checkpoint`
 
-For example, users can implement a hook to check loss and terminate training when loss goes NaN. To achieve that, there are three steps to go:
+For example, users can implement a hook to check loss and terminate training when loss goes NaN. To achieve that, there
+are three steps to go:
 
-1. Implement a new hook that inherits the `Hook` class in MMEngine, and implement `after_train_iter` method which checks whether loss goes NaN after every `n` training iterations.
+1. Implement a new hook that inherits the `Hook` class in MMEngine, and implement `after_train_iter` method which checks
+   whether loss goes NaN after every `n` training iterations.
 2. The implemented hook should be registered in `HOOKS` by `@HOOKS.register_module()` as shown in the code below.
 3. Add `custom_hooks = [dict(type='MemoryProfilerHook', interval=50)]` in the config file.
 

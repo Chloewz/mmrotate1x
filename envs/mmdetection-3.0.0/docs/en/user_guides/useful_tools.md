@@ -50,7 +50,8 @@ Examples:
 
 ## Result Analysis
 
-`tools/analysis_tools/analyze_results.py` calculates single image mAP and saves or shows the topk images with the highest and lowest scores based on prediction results.
+`tools/analysis_tools/analyze_results.py` calculates single image mAP and saves or shows the topk images with the
+highest and lowest scores based on prediction results.
 
 **Usage**
 
@@ -73,7 +74,8 @@ Description of all arguments:
 - `show_dir`: Directory where painted GT and detection images will be saved
 - `--show`：Determines whether to show painted images, If not specified, it will be set to `False`
 - `--wait-time`: The interval of show (s), 0 is block
-- `--topk`: The number of saved images that have the highest and lowest `topk` scores after sorting. If not specified, it will be set to `20`.
+- `--topk`: The number of saved images that have the highest and lowest `topk` scores after sorting. If not specified,
+  it will be set to `20`.
 - `--show-score-thr`:  Show score threshold. If not specified, it will be set to `0`.
 - `--cfg-options`: If specified, the key-value pair optional cfg will be merged into config file
 
@@ -133,7 +135,8 @@ The converted model could be visualized by tools like [Netron](https://github.co
 
 ### Visualize Predictions
 
-If you need a lightweight GUI for visualizing the detection results, you can refer [DetVisGUI project](https://github.com/Chien-Hung/DetVisGUI/tree/mmdetection).
+If you need a lightweight GUI for visualizing the detection results, you can
+refer [DetVisGUI project](https://github.com/Chien-Hung/DetVisGUI/tree/mmdetection).
 
 ## Error Analysis
 
@@ -146,12 +149,15 @@ python tools/analysis_tools/coco_error_analysis.py ${RESULT} ${OUT_DIR} [-h] [--
 
 Example:
 
-Assume that you have got [Mask R-CNN checkpoint file](https://download.openmmlab.com/mmdetection/v2.0/mask_rcnn/mask_rcnn_r50_fpn_1x_coco/mask_rcnn_r50_fpn_1x_coco_20200205-d4b0c5d6.pth) in the path 'checkpoint'. For other checkpoints, please refer to our [model zoo](./model_zoo.md).
+Assume that you have
+got [Mask R-CNN checkpoint file](https://download.openmmlab.com/mmdetection/v2.0/mask_rcnn/mask_rcnn_r50_fpn_1x_coco/mask_rcnn_r50_fpn_1x_coco_20200205-d4b0c5d6.pth)
+in the path 'checkpoint'. For other checkpoints, please refer to our [model zoo](./model_zoo.md).
 
 You can modify the test_evaluator to save the results bbox by:
 
 1. Find which dataset in 'configs/base/datasets' the current config corresponds to.
-2. Replace the original test_evaluator and test_dataloader with test_evaluator and test_dataloader in the comment in dataset config.
+2. Replace the original test_evaluator and test_dataloader with test_evaluator and test_dataloader in the comment in
+   dataset config.
 3. Use the following command to get the results bbox and segmentation json file.
 
 ```shell
@@ -160,7 +166,9 @@ python tools/test.py \
        checkpoint/mask_rcnn_r50_fpn_1x_coco_20200205-d4b0c5d6.pth \
 ```
 
-1. Get COCO bbox error results per category , save analyze result images to the directory(In  [config](../../../configs/_base_/datasets/coco_instance.py) the default directory is './work_dirs/coco_instance/test')
+1. Get COCO bbox error results per category , save analyze result images to the directory(
+   In  [config](../../../configs/_base_/datasets/coco_instance.py) the default directory is '
+   ./work_dirs/coco_instance/test')
 
 ```shell
 python tools/analysis_tools/coco_error_analysis.py \
@@ -187,13 +195,15 @@ In order to serve an `MMDetection` model with [`TorchServe`](https://pytorch.org
 
 Suppose you have a `Python` environment with `PyTorch` and `MMDetection` successfully installed,
 then you could run the following command to install `TorchServe` and its dependencies.
-For more other installation options, please refer to the [quick start](https://github.com/pytorch/serve/blob/master/README.md#serve-a-model).
+For more other installation options, please refer to
+the [quick start](https://github.com/pytorch/serve/blob/master/README.md#serve-a-model).
 
 ```shell
 python -m pip install torchserve torch-model-archiver torch-workflow-archiver nvgpu
 ```
 
-**Note**: Please refer to [torchserve docker](https://github.com/pytorch/serve/blob/master/docker/README.md) if you want to use `TorchServe` in docker.
+**Note**: Please refer to [torchserve docker](https://github.com/pytorch/serve/blob/master/docker/README.md) if you want
+to use `TorchServe` in docker.
 
 ### 2. Convert model from MMDetection to TorchServe
 
@@ -286,7 +296,9 @@ torchserve --stop
 
 ## Model Complexity
 
-`tools/analysis_tools/get_flops.py` is a script adapted from [flops-counter.pytorch](https://github.com/sovrasov/flops-counter.pytorch) to compute the FLOPs and params of a given model.
+`tools/analysis_tools/get_flops.py` is a script adapted
+from [flops-counter.pytorch](https://github.com/sovrasov/flops-counter.pytorch) to compute the FLOPs and params of a
+given model.
 
 ```shell
 python tools/analysis_tools/get_flops.py ${CONFIG_FILE} [--shape ${INPUT_SHAPE}]
@@ -308,14 +320,18 @@ comparisons, but double check it before you adopt it in technical reports or pap
 
 1. FLOPs are related to the input shape while parameters are not. The default
    input shape is (1, 3, 1280, 800).
-2. Some operators are not counted into FLOPs like GN and custom operators. Refer to [`mmcv.cnn.get_model_complexity_info()`](https://github.com/open-mmlab/mmcv/blob/2.x/mmcv/cnn/utils/flops_counter.py) for details.
+2. Some operators are not counted into FLOPs like GN and custom operators. Refer to [
+   `mmcv.cnn.get_model_complexity_info()`](https://github.com/open-mmlab/mmcv/blob/2.x/mmcv/cnn/utils/flops_counter.py)
+   for details.
 3. The FLOPs of two-stage detectors is dependent on the number of proposals.
 
 ## Model conversion
 
 ### MMDetection model to ONNX
 
-We provide a script to convert model to [ONNX](https://github.com/onnx/onnx) format. We also support comparing the output results between Pytorch and ONNX model for verification. More details can refer to [mmdeploy](https://github.com/open-mmlab/mmdeploy)
+We provide a script to convert model to [ONNX](https://github.com/onnx/onnx) format. We also support comparing the
+output results between Pytorch and ONNX model for verification. More details can refer
+to [mmdeploy](https://github.com/open-mmlab/mmdeploy)
 
 ### MMDetection 1.x model to MMDetection 2.x
 
@@ -389,7 +405,8 @@ python tools/misc/download_dataset.py --dataset-name voc2007
 python tools/misc/download_dataset.py --dataset-name lvis
 ```
 
-For users in China, these datasets can also be downloaded from [OpenDataLab](https://opendatalab.com/?source=OpenMMLab%20GitHub) with high speed:
+For users in China, these datasets can also be downloaded
+from [OpenDataLab](https://opendatalab.com/?source=OpenMMLab%20GitHub) with high speed:
 
 - [COCO2017](https://opendatalab.com/COCO_2017/download?source=OpenMMLab%20GitHub)
 - [VOC2007](https://opendatalab.com/PASCAL_VOC2007/download?source=OpenMMLab%20GitHub)
@@ -400,11 +417,16 @@ For users in China, these datasets can also be downloaded from [OpenDataLab](htt
 
 ### Robust Detection Benchmark
 
-`tools/analysis_tools/test_robustness.py` and`tools/analysis_tools/robustness_eval.py`  helps users to evaluate model robustness. The core idea comes from [Benchmarking Robustness in Object Detection: Autonomous Driving when Winter is Coming](https://arxiv.org/abs/1907.07484). For more information how to evaluate models on corrupted images and results for a set of standard models please refer to [robustness_benchmarking.md](robustness_benchmarking.md).
+`tools/analysis_tools/test_robustness.py` and`tools/analysis_tools/robustness_eval.py`  helps users to evaluate model
+robustness. The core idea comes
+from [Benchmarking Robustness in Object Detection: Autonomous Driving when Winter is Coming](https://arxiv.org/abs/1907.07484).
+For more information how to evaluate models on corrupted images and results for a set of standard models please refer
+to [robustness_benchmarking.md](robustness_benchmarking.md).
 
 ### FPS Benchmark
 
-`tools/analysis_tools/benchmark.py` helps users to calculate FPS. The FPS value includes model forward and post-processing. In order to get a more accurate value, currently only supports single GPU distributed startup mode.
+`tools/analysis_tools/benchmark.py` helps users to calculate FPS. The FPS value includes model forward and
+post-processing. In order to get a more accurate value, currently only supports single GPU distributed startup mode.
 
 ```shell
 python -m torch.distributed.launch --nproc_per_node=1 --master_port=${PORT} tools/analysis_tools/benchmark.py \
@@ -453,7 +475,8 @@ python tools/misc/print_config.py ${CONFIG} [-h] [--options ${OPTIONS [OPTIONS..
 
 `tools/analysis_tools/optimize_anchors.py` provides two method to optimize YOLO anchors.
 
-One is k-means anchor cluster which refers from [darknet](https://github.com/AlexeyAB/darknet/blob/master/src/detector.c#L1421).
+One is k-means anchor cluster which refers
+from [darknet](https://github.com/AlexeyAB/darknet/blob/master/src/detector.c#L1421).
 
 ```shell
 python tools/analysis_tools/optimize_anchors.py ${CONFIG} --algorithm k-means --input-shape ${INPUT_SHAPE [WIDTH HEIGHT]} --output-dir ${OUTPUT_DIR}
@@ -513,7 +536,9 @@ And you will get a confusion matrix like this:
 ## COCO Separated & Occluded Mask Metric
 
 Detecting occluded objects still remains a challenge for state-of-the-art object detectors.
-We implemented the metric presented in paper [A Tri-Layer Plugin to Improve Occluded Detection](https://arxiv.org/abs/2210.10046) to calculate the recall of separated and occluded masks.
+We implemented the metric presented in
+paper [A Tri-Layer Plugin to Improve Occluded Detection](https://arxiv.org/abs/2210.10046) to calculate the recall of
+separated and occluded masks.
 
 There are two ways to use this metric:
 
@@ -527,7 +552,8 @@ First, use the `tools/test.py` script to dump the detection results:
 python tools/test.py ${CONFIG} ${MODEL_PATH} --out results.pkl
 ```
 
-Then, run the `tools/analysis_tools/coco_occluded_separated_recall.py` script to get the recall of separated and occluded masks:
+Then, run the `tools/analysis_tools/coco_occluded_separated_recall.py` script to get the recall of separated and
+occluded masks:
 
 ```shell
 python tools/analysis_tools/coco_occluded_separated_recall.py results.pkl --out occluded_separated_recall.json
@@ -563,7 +589,8 @@ Evaluation results have been saved to occluded_separated_recall.json.
 ### Online evaluation
 
 We implement `CocoOccludedSeparatedMetric` which inherits from the `CocoMetic`.
-To evaluate the recall of separated and occluded masks during training, just replace the evaluator metric type with `'CocoOccludedSeparatedMetric'` in your config:
+To evaluate the recall of separated and occluded masks during training, just replace the evaluator metric type with
+`'CocoOccludedSeparatedMetric'` in your config:
 
 ```python
 val_evaluator = dict(

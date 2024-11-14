@@ -108,7 +108,7 @@ def main():
     if args.cfg_options is not None:
         cfg.merge_from_dict(args.cfg_options)
 
-    init_default_scope(cfg.get("default_scope", "mmyolo"))
+    init_default_scope(cfg.get("default_scope", "mmrotate1x"))
 
     channel_reduction = args.channel_reduction
     if channel_reduction == "None":

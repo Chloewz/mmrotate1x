@@ -1,7 +1,9 @@
 # Finetuning Models
 
-Detectors pre-trained on the COCO dataset can serve as a good pre-trained model for other datasets, e.g., CityScapes and KITTI Dataset.
-This tutorial provides instructions for users to use the models provided in the [Model Zoo](../model_zoo.md) for other datasets to obtain better performance.
+Detectors pre-trained on the COCO dataset can serve as a good pre-trained model for other datasets, e.g., CityScapes and
+KITTI Dataset.
+This tutorial provides instructions for users to use the models provided in the [Model Zoo](../model_zoo.md) for other
+datasets to obtain better performance.
 
 There are two steps to finetune a model on a new dataset.
 
@@ -12,8 +14,13 @@ Take the finetuning process on Cityscapes Dataset as an example, the users need 
 
 ## Inherit base configs
 
-To release the burden and reduce bugs in writing the whole configs, MMDetection V3.0 support inheriting configs from multiple existing configs. To finetune a Mask RCNN model, the new config needs to inherit
-`_base_/models/mask-rcnn_r50_fpn.py` to build the basic structure of the model. To use the Cityscapes Dataset, the new config can also simply inherit `_base_/datasets/cityscapes_instance.py`. For runtime settings such as logger settings, the new config needs to inherit `_base_/default_runtime.py`. For training schedules, the new config can to inherit `_base_/schedules/schedule_1x.py`. These configs are in the `configs` directory and the users can also choose to write the whole contents rather than use inheritance.
+To release the burden and reduce bugs in writing the whole configs, MMDetection V3.0 support inheriting configs from
+multiple existing configs. To finetune a Mask RCNN model, the new config needs to inherit
+`_base_/models/mask-rcnn_r50_fpn.py` to build the basic structure of the model. To use the Cityscapes Dataset, the new
+config can also simply inherit `_base_/datasets/cityscapes_instance.py`. For runtime settings such as logger settings,
+the new config needs to inherit `_base_/default_runtime.py`. For training schedules, the new config can to inherit
+`_base_/schedules/schedule_1x.py`. These configs are in the `configs` directory and the users can also choose to write
+the whole contents rather than use inheritance.
 
 ```python
 _base_ = [
@@ -25,7 +32,9 @@ _base_ = [
 
 ## Modify head
 
-Then the new config needs to modify the head according to the class numbers of the new datasets. By only changing `num_classes` in the roi_head, the weights of the pre-trained models are mostly reused except for the final prediction head.
+Then the new config needs to modify the head according to the class numbers of the new datasets. By only changing
+`num_classes` in the roi_head, the weights of the pre-trained models are mostly reused except for the final prediction
+head.
 
 ```python
 model = dict(
@@ -56,11 +65,14 @@ model = dict(
 
 ## Modify dataset
 
-The users may also need to prepare the dataset and write the configs about dataset, refer to [Customize Datasets](../advanced_guides/customize_dataset.md) for more detail. MMDetection V3.0 already supports VOC, WIDERFACE, COCO, LIVS, OpenImages, DeepFashion, Objects365, and Cityscapes Dataset.
+The users may also need to prepare the dataset and write the configs about dataset, refer
+to [Customize Datasets](../advanced_guides/customize_dataset.md) for more detail. MMDetection V3.0 already supports VOC,
+WIDERFACE, COCO, LIVS, OpenImages, DeepFashion, Objects365, and Cityscapes Dataset.
 
 ## Modify training schedule
 
-The finetuning hyperparameters vary from the default schedule. It usually requires a smaller learning rate and fewer training epochs
+The finetuning hyperparameters vary from the default schedule. It usually requires a smaller learning rate and fewer
+training epochs
 
 ```python
 # optimizer
@@ -89,7 +101,8 @@ default_hooks = dict(logger=dict(interval=100)),
 
 ## Use pre-trained model
 
-To use the pre-trained model, the new config adds the link of pre-trained models in the `load_from`. The users might need to download the model weights before training to avoid the download time during training.
+To use the pre-trained model, the new config adds the link of pre-trained models in the `load_from`. The users might
+need to download the model weights before training to avoid the download time during training.
 
 ```python
 load_from = 'https://download.openmmlab.com/mmdetection/v2.0/mask_rcnn/mask_rcnn_r50_caffe_fpn_mstrain-poly_3x_coco/mask_rcnn_r50_caffe_fpn_mstrain-poly_3x_coco_bbox_mAP-0.408__segm_mAP-0.37_20200504_163245-42aa3d00.pth'  # noqa

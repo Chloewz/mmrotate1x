@@ -1,16 +1,25 @@
 # Semi-automatic Object Detection Annotation with MMDetection and Label-Studio
 
-Annotation data is a time-consuming and laborious task. This article introduces how to perform semi-automatic annotation using the RTMDet algorithm in MMDetection in conjunction with Label-Studio software. Specifically, using RTMDet to predict image annotations and then refining the annotations with Label-Studio. Community users can refer to this process and methodology and apply it to other fields.
+Annotation data is a time-consuming and laborious task. This article introduces how to perform semi-automatic annotation
+using the RTMDet algorithm in MMDetection in conjunction with Label-Studio software. Specifically, using RTMDet to
+predict image annotations and then refining the annotations with Label-Studio. Community users can refer to this process
+and methodology and apply it to other fields.
 
-- RTMDet: RTMDet is a high-precision single-stage object detection algorithm developed by OpenMMLab, open-sourced in the MMDetection object detection toolbox. Its open-source license is Apache 2.0, and it can be used freely without restrictions by industrial users.
+- RTMDet: RTMDet is a high-precision single-stage object detection algorithm developed by OpenMMLab, open-sourced in the
+  MMDetection object detection toolbox. Its open-source license is Apache 2.0, and it can be used freely without
+  restrictions by industrial users.
 
-- [Label Studio](https://github.com/heartexlabs/label-studio) is an excellent annotation software covering the functionality of dataset annotation in areas such as image classification, object detection, and segmentation.
+- [Label Studio](https://github.com/heartexlabs/label-studio) is an excellent annotation software covering the
+  functionality of dataset annotation in areas such as image classification, object detection, and segmentation.
 
-In this article, we will use [cat](https://download.openmmlab.com/mmyolo/data/cat_dataset.zip) images for semi-automatic annotation.
+In this article, we will use [cat](https://download.openmmlab.com/mmyolo/data/cat_dataset.zip) images for semi-automatic
+annotation.
 
 ## Environment Configuration
 
-To begin with, you need to create a virtual environment and then install PyTorch and MMCV. In this article, we will specify the versions of PyTorch and MMCV. Next, you can install MMDetection, Label-Studio, and label-studio-ml-backend using the following steps:
+To begin with, you need to create a virtual environment and then install PyTorch and MMCV. In this article, we will
+specify the versions of PyTorch and MMCV. Next, you can install MMDetection, Label-Studio, and label-studio-ml-backend
+using the following steps:
 
 Create a virtual environment:
 
@@ -80,7 +89,8 @@ device=cpu \
 
 ![](https://cdn.vansin.top/picgo20230330131601.png)
 
-The RTMDet backend inference service has now been started. To configure it in the Label-Studio web system, use http://localhost:8003 as the backend inference service.
+The RTMDet backend inference service has now been started. To configure it in the Label-Studio web system,
+use http://localhost:8003 as the backend inference service.
 
 Now, start the Label-Studio web service:
 
@@ -220,7 +230,9 @@ Click on Label to start labeling.
 
 ![](https://cdn.vansin.top/picgo20230330134804.png)
 
-We can see that the RTMDet backend inference service has successfully returned the predicted results and displayed them on the image. However, we noticed that the predicted bounding boxes for the cats are a bit too large and not very accurate.
+We can see that the RTMDet backend inference service has successfully returned the predicted results and displayed them
+on the image. However, we noticed that the predicted bounding boxes for the cats are a bit too large and not very
+accurate.
 
 ![](https://cdn.vansin.top/picgo20230403104419.png)
 
@@ -232,15 +244,19 @@ After submitting all images, click export to export the labeled dataset in COCO 
 
 ![](https://cdn.vansin.top/picgo20230330135921.png)
 
-Use VS Code to open the unzipped folder to see the labeled dataset, which includes the images and the annotation files in JSON format.
+Use VS Code to open the unzipped folder to see the labeled dataset, which includes the images and the annotation files
+in JSON format.
 
 ![](https://cdn.vansin.top/picgo20230330140321.png)
 
-At this point, the semi-automatic labeling is complete. We can use this dataset to train a more accurate model in MMDetection and then continue semi-automatic labeling on newly collected images with this model. This way, we can iteratively expand the high-quality dataset and improve the accuracy of the model.
+At this point, the semi-automatic labeling is complete. We can use this dataset to train a more accurate model in
+MMDetection and then continue semi-automatic labeling on newly collected images with this model. This way, we can
+iteratively expand the high-quality dataset and improve the accuracy of the model.
 
 ## Use MMYOLO as the Backend Inference Service
 
-If you want to use Label-Studio in MMYOLO, you can refer to replacing the config_file and checkpoint_file with the configuration file and weight file of MMYOLO when starting the backend inference service.
+If you want to use Label-Studio in MMYOLO, you can refer to replacing the config_file and checkpoint_file with the
+configuration file and weight file of MMYOLO when starting the backend inference service.
 
 ```shell
 cd path/to/mmetection

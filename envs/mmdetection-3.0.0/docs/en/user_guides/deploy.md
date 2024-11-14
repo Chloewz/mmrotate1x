@@ -1,7 +1,9 @@
 # Model Deployment
 
-The deployment of OpenMMLab codebases, including MMDetection, MMClassification and so on are supported by [MMDeploy](https://github.com/open-mmlab/mmdeploy).
-The latest deployment guide for MMDetection can be found from [here](https://mmdeploy.readthedocs.io/en/dev-1.x/04-supported-codebases/mmdet.html).
+The deployment of OpenMMLab codebases, including MMDetection, MMClassification and so on are supported
+by [MMDeploy](https://github.com/open-mmlab/mmdeploy).
+The latest deployment guide for MMDetection can be found
+from [here](https://mmdeploy.readthedocs.io/en/dev-1.x/04-supported-codebases/mmdet.html).
 
 This tutorial is organized as follows:
 
@@ -9,13 +11,15 @@ This tutorial is organized as follows:
 - [Convert model](#convert-model)
 - [Model specification](#model-specification)
 - [Model inference](#model-inference)
-  - [Backend model inference](#backend-model-inference)
-  - [SDK model inference](#sdk-model-inference)
+    - [Backend model inference](#backend-model-inference)
+    - [SDK model inference](#sdk-model-inference)
 - [Supported models](#supported-models)
 
 ## Installation
 
-Please follow the [guide](https://mmdetection.readthedocs.io/en/latest/get_started.html) to install mmdet. And then install mmdeploy from source by following [this](https://mmdeploy.readthedocs.io/en/1.x/get_started.html#installation) guide.
+Please follow the [guide](https://mmdetection.readthedocs.io/en/latest/get_started.html) to install mmdet. And then
+install mmdeploy from source by following [this](https://mmdeploy.readthedocs.io/en/1.x/get_started.html#installation)
+guide.
 
 ```{note}
 If you install mmdeploy prebuilt package, please also clone its repository by 'git clone https://github.com/open-mmlab/mmdeploy.git --depth=1' to get the deployment config files.
@@ -23,9 +27,13 @@ If you install mmdeploy prebuilt package, please also clone its repository by 'g
 
 ## Convert model
 
-Suppose mmdetection and mmdeploy repositories are in the same directory, and the working directory is the root path of mmdetection.
+Suppose mmdetection and mmdeploy repositories are in the same directory, and the working directory is the root path of
+mmdetection.
 
-Take [Faster R-CNN](https://github.com/open-mmlab/mmdetection/blob/main/configs/faster_rcnn/faster-rcnn_r50_fpn_1x_coco.py) model as an example. You can download its checkpoint from [here](https://download.openmmlab.com/mmdetection/v2.0/faster_rcnn/faster_rcnn_r50_fpn_1x_coco/faster_rcnn_r50_fpn_1x_coco_20200130-047c8118.pth), and then convert it to onnx model as follows:
+Take [Faster R-CNN](https://github.com/open-mmlab/mmdetection/blob/main/configs/faster_rcnn/faster-rcnn_r50_fpn_1x_coco.py)
+model as an example. You can download its checkpoint
+from [here](https://download.openmmlab.com/mmdetection/v2.0/faster_rcnn/faster_rcnn_r50_fpn_1x_coco/faster_rcnn_r50_fpn_1x_coco_20200130-047c8118.pth),
+and then convert it to onnx model as follows:
 
 ```python
 from mmdeploy.apis import torch2onnx
@@ -48,7 +56,9 @@ export2SDK(deploy_cfg, model_cfg, work_dir, pth=model_checkpoint,
            device=device)
 ```
 
-It is crucial to specify the correct deployment config during model conversion. MMDeploy has already provided builtin deployment config [files](https://github.com/open-mmlab/mmdeploy/tree/1.x/configs/mmdet) of all supported backends for mmdetection, under which the config file path follows the pattern:
+It is crucial to specify the correct deployment config during model conversion. MMDeploy has already provided builtin
+deployment config [files](https://github.com/open-mmlab/mmdeploy/tree/1.x/configs/mmdet) of all supported backends for
+mmdetection, under which the config file path follows the pattern:
 
 ```
 {task}/{task}_{backend}-{precision}_{static | dynamic}_{shape}.py
@@ -58,9 +68,11 @@ It is crucial to specify the correct deployment config during model conversion. 
 
   There are two of them. One is `detection` and the other is `instance-seg`, indicating instance segmentation.
 
-  mmdet models like `RetinaNet`, `Faster R-CNN` and `DETR` and so on belongs to `detection` task. While `Mask R-CNN` is one of `instance-seg` models.
+  mmdet models like `RetinaNet`, `Faster R-CNN` and `DETR` and so on belongs to `detection` task. While `Mask R-CNN` is
+  one of `instance-seg` models.
 
-  **DO REMEMBER TO USE** `detection/detection_*.py` deployment config file when trying to convert detection models and use `instance-seg/instance-seg_*.py` to deploy instance segmentation models.
+  **DO REMEMBER TO USE** `detection/detection_*.py` deployment config file when trying to convert detection models and
+  use `instance-seg/instance-seg_*.py` to deploy instance segmentation models.
 
 - **{backend}:** inference backend, such as onnxruntime, tensorrt, pplnn, ncnn, openvino, coreml etc.
 
@@ -70,7 +82,8 @@ It is crucial to specify the correct deployment config during model conversion. 
 
 - **{shape}:** input shape or shape range of a model
 
-Therefore, in the above example, you can also convert `Faster R-CNN` to tensorrt-fp16 model by `detection_tensorrt-fp16_dynamic-320x320-1344x1344.py`.
+Therefore, in the above example, you can also convert `Faster R-CNN` to tensorrt-fp16 model by
+`detection_tensorrt-fp16_dynamic-320x320-1344x1344.py`.
 
 ```{tip}
 When converting mmdet models to tensorrt models, --device should be set to "cuda"
@@ -78,9 +91,11 @@ When converting mmdet models to tensorrt models, --device should be set to "cuda
 
 ## Model specification
 
-Before moving on to model inference chapter, let's know more about the converted model structure which is very important for model inference.
+Before moving on to model inference chapter, let's know more about the converted model structure which is very important
+for model inference.
 
-The converted model locates in the working directory like `mmdeploy_models/mmdet/onnx` in the previous example. It includes:
+The converted model locates in the working directory like `mmdeploy_models/mmdet/onnx` in the previous example. It
+includes:
 
 ```
 mmdeploy_models/mmdet/onnx
@@ -95,13 +110,15 @@ in which,
 - **end2end.onnx**: backend model which can be inferred by ONNX Runtime
 - ***xxx*.json**: the necessary information for mmdeploy SDK
 
-The whole package **mmdeploy_models/mmdet/onnx** is defined as **mmdeploy SDK model**, i.e., **mmdeploy SDK model** includes both backend model and inference meta information.
+The whole package **mmdeploy_models/mmdet/onnx** is defined as **mmdeploy SDK model**, i.e., **mmdeploy SDK model**
+includes both backend model and inference meta information.
 
 ## Model inference
 
 ### Backend model inference
 
-Take the previous converted `end2end.onnx` model as an example, you can use the following code to inference the model and visualize the results.
+Take the previous converted `end2end.onnx` model as an example, you can use the following code to inference the model
+and visualize the results.
 
 ```python
 from mmdeploy.apis.utils import build_task_processor
@@ -166,8 +183,10 @@ for index, bbox, label_id in zip(indices, bboxes, labels):
 cv2.imwrite('output_detection.png', img)
 ```
 
-Besides python API, mmdeploy SDK also provides other FFI (Foreign Function Interface), such as C, C++, C#, Java and so on. You can learn their usage from [demos](https://github.com/open-mmlab/mmdeploy/tree/1.x/demo).
+Besides python API, mmdeploy SDK also provides other FFI (Foreign Function Interface), such as C, C++, C#, Java and so
+on. You can learn their usage from [demos](https://github.com/open-mmlab/mmdeploy/tree/1.x/demo).
 
 ## Supported models
 
-Please refer to [here](https://mmdeploy.readthedocs.io/en/1.x/04-supported-codebases/mmdet.html#supported-models) for the supported model list.
+Please refer to [here](https://mmdeploy.readthedocs.io/en/1.x/04-supported-codebases/mmdet.html#supported-models) for
+the supported model list.

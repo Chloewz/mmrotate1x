@@ -45,7 +45,7 @@ def parse_args():
 
 
 def prefetch_batch_input_shape(model: nn.Module, ori_wh: Tuple[int,
-                                                               int]) -> dict:
+int]) -> dict:
     cfg = model.cfg
     w, h = ori_wh
     cfg.test_dataloader.dataset.pipeline[0].type = 'LoadImageFromNDArray'
@@ -63,9 +63,9 @@ def pack_data(frame_resize: np.ndarray, batch_input_shape: Tuple[int, int],
     data_sample = DetDataSample()
     data_sample.set_metainfo({
         'img_shape':
-        batch_input_shape,
+            batch_input_shape,
         'ori_shape':
-        ori_shape,
+            ori_shape,
         'scale_factor': (batch_input_shape[0] / ori_shape[0],
                          batch_input_shape[1] / ori_shape[1])
     })

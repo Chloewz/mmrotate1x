@@ -1,6 +1,8 @@
 # Semi-supervised Object Detection
 
-Semi-supervised object detection uses both labeled data and unlabeled data for training. It not only reduces the annotation burden for training high-performance object detectors but also further improves the object detector by using a large number of unlabeled data.
+Semi-supervised object detection uses both labeled data and unlabeled data for training. It not only reduces the
+annotation burden for training high-performance object detectors but also further improves the object detector by using
+a large number of unlabeled data.
 
 A typical procedure to train a semi-supervised object detector is as below:
 
@@ -37,18 +39,24 @@ mmdetection
 
 There are two common experimental settings for semi-supervised object detection on the coco2017 dataset:
 
-(1) Split `train2017` according to a fixed percentage (1%, 2%, 5% and 10%) as a labeled dataset, and the rest of `train2017` as an unlabeled dataset. Because the different splits of `train2017` as labeled datasets will cause significant fluctuation on the accuracy of the semi-supervised detectors, five-fold cross-validation is used in practice to evaluate the algorithm. We provide the dataset split script:
+(1) Split `train2017` according to a fixed percentage (1%, 2%, 5% and 10%) as a labeled dataset, and the rest of
+`train2017` as an unlabeled dataset. Because the different splits of `train2017` as labeled datasets will cause
+significant fluctuation on the accuracy of the semi-supervised detectors, five-fold cross-validation is used in practice
+to evaluate the algorithm. We provide the dataset split script:
 
 ```shell
 python tools/misc/split_coco.py
 ```
 
-By default, the script will split `train2017` according to the labeled data ratio  1%, 2%, 5% and 10%, and each split will be randomly repeated 5 times for cross-validation. The generated semi-supervised annotation file name format is as below:
+By default, the script will split `train2017` according to the labeled data ratio 1%, 2%, 5% and 10%, and each split
+will be randomly repeated 5 times for cross-validation. The generated semi-supervised annotation file name format is as
+below:
 
 - the name format of labeled dataset: `instances_train2017.{fold}@{percent}.json`
 - the name format of unlabeled dataset: `instances_train2017.{fold}@{percent}-unlabeled.json`
 
-Here, `fold` is used for cross-validation, and `percent` represents the ratio of labeled data. The directory structure of the divided dataset is as below:
+Here, `fold` is used for cross-validation, and `percent` represents the ratio of labeled data. The directory structure
+of the divided dataset is as below:
 
 ```plain
 mmdetection
@@ -75,7 +83,10 @@ mmdetection
 │   │   ├── val2017
 ```
 
-(2) Use `train2017` as the labeled dataset and `unlabeled2017` as the unlabeled dataset. Since `image_info_unlabeled2017.json` does not contain `categories` information, the `CocoDataset` cannot be initialized, so you need to write the `categories` of `instances_train2017.json` into `image_info_unlabeled2017.json` and save it as `instances_unlabeled2017.json`, the relevant script is as below:
+(2) Use `train2017` as the labeled dataset and `unlabeled2017` as the unlabeled dataset. Since
+`image_info_unlabeled2017.json` does not contain `categories` information, the `CocoDataset` cannot be initialized, so
+you need to write the `categories` of `instances_train2017.json` into `image_info_unlabeled2017.json` and save it as
+`instances_unlabeled2017.json`, the relevant script is as below:
 
 ```python
 from mmengine.fileio import load, dump
@@ -108,8 +119,10 @@ mmdetection
 There are two main approaches to semi-supervised learning,
 [consistency regularization](https://research.nvidia.com/sites/default/files/publications/laine2017iclr_paper.pdf)
 and [pseudo label](https://www.researchgate.net/profile/Dong-Hyun-Lee/publication/280581078_Pseudo-Label_The_Simple_and_Efficient_Semi-Supervised_Learning_Method_for_Deep_Neural_Networks/links/55bc4ada08ae092e9660b776/Pseudo-Label-The-Simple-and-Efficient-Semi-Supervised-Learning-Method-for-Deep-Neural-Networks.pdf).
-Consistency regularization often requires some careful design, while pseudo label have a simpler form and are easier to extend to downstream tasks.
-We adopt a teacher-student joint training semi-supervised object detection framework based on pseudo label, so labeled data and unlabeled data need to configure different data pipeline:
+Consistency regularization often requires some careful design, while pseudo label have a simpler form and are easier to
+extend to downstream tasks.
+We adopt a teacher-student joint training semi-supervised object detection framework based on pseudo label, so labeled
+data and unlabeled data need to configure different data pipeline:
 
 (1) Pipeline for labeled data：
 
@@ -207,23 +220,37 @@ train_dataloader = dict(
         type='ConcatDataset', datasets=[labeled_dataset, unlabeled_dataset]))
 ```
 
-(2) Use multi-source dataset sampler. Use `GroupMultiSourceSampler` to sample data form batches from `labeled_dataset` and `labeled_dataset`, `source_ratio` controls the proportion of labeled data and unlabeled data in the batch. `GroupMultiSourceSampler` also ensures that the images in the same batch have similar aspect ratios. If you don't need to guarantee the aspect ratio of the images in the batch, you can use `MultiSourceSampler`. The sampling diagram of `GroupMultiSourceSampler` is as below:
+(2) Use multi-source dataset sampler. Use `GroupMultiSourceSampler` to sample data form batches from `labeled_dataset`
+and `labeled_dataset`, `source_ratio` controls the proportion of labeled data and unlabeled data in the batch.
+`GroupMultiSourceSampler` also ensures that the images in the same batch have similar aspect ratios. If you don't need
+to guarantee the aspect ratio of the images in the batch, you can use `MultiSourceSampler`. The sampling diagram of
+`GroupMultiSourceSampler` is as below:
 
 <div align=center>
 <img src="https://user-images.githubusercontent.com/40661020/186149261-8cf28e92-de5c-4c8c-96e1-13558b2e27f7.jpg"/>
 </div>
 
-`sup=1000` indicates that the scale of the labeled dataset is 1000, `sup_h=200` indicates that the scale of the images with an aspect ratio greater than or equal to 1 in the labeled dataset is 200, and `sup_w=800` indicates that the scale of the images with an aspect ratio less than 1 in the labeled dataset is 800,
-`unsup=9000` indicates that the scale of the unlabeled dataset is 9000, `unsup_h=1800` indicates that the scale of the images with an aspect ratio greater than or equal to 1 in the unlabeled dataset is 1800, and `unsup_w=7200` indicates the scale of the images with an aspect ratio less than 1 in the unlabeled dataset is 7200.
-`GroupMultiSourceSampler` randomly selects a group according to the overall aspect ratio distribution of the images in the labeled dataset and the unlabeled dataset, and then sample data to form batches from the two datasets according to `source_ratio`, so labeled datasets and unlabeled datasets have different repetitions.
+`sup=1000` indicates that the scale of the labeled dataset is 1000, `sup_h=200` indicates that the scale of the images
+with an aspect ratio greater than or equal to 1 in the labeled dataset is 200, and `sup_w=800` indicates that the scale
+of the images with an aspect ratio less than 1 in the labeled dataset is 800,
+`unsup=9000` indicates that the scale of the unlabeled dataset is 9000, `unsup_h=1800` indicates that the scale of the
+images with an aspect ratio greater than or equal to 1 in the unlabeled dataset is 1800, and `unsup_w=7200` indicates
+the scale of the images with an aspect ratio less than 1 in the unlabeled dataset is 7200.
+`GroupMultiSourceSampler` randomly selects a group according to the overall aspect ratio distribution of the images in
+the labeled dataset and the unlabeled dataset, and then sample data to form batches from the two datasets according to
+`source_ratio`, so labeled datasets and unlabeled datasets have different repetitions.
 
 ## Configure semi-supervised model
 
-We choose `Faster R-CNN` as `detector` for semi-supervised training. Take the semi-supervised object detection algorithm `SoftTeacher` as an example,
-the model configuration can be inherited from `_base_/models/faster-rcnn_r50_fpn.py`, replacing the backbone network of the detector with `caffe` style.
+We choose `Faster R-CNN` as `detector` for semi-supervised training. Take the semi-supervised object detection algorithm
+`SoftTeacher` as an example,
+the model configuration can be inherited from `_base_/models/faster-rcnn_r50_fpn.py`, replacing the backbone network of
+the detector with `caffe` style.
 Note that unlike the supervised training configs, `Faster R-CNN` as `detector` is an attribute of `model`, not `model` .
-In addition, `data_preprocessor` needs to be set to `MultiBranchDataPreprocessor`, which is used to pad and normalize images from different pipelines.
-Finally, parameters required for semi-supervised training and testing can be configured via `semi_train_cfg` and `semi_test_cfg`.
+In addition, `data_preprocessor` needs to be set to `MultiBranchDataPreprocessor`, which is used to pad and normalize
+images from different pipelines.
+Finally, parameters required for semi-supervised training and testing can be configured via `semi_train_cfg` and
+`semi_test_cfg`.
 
 ```python
 _base_ = [
@@ -272,7 +299,9 @@ model = dict(
     semi_test_cfg=dict(predict_on='teacher'))
 ```
 
-In addition, we also support semi-supervised training for other detection models, such as `RetinaNet` and `Cascade R-CNN`. Since `SoftTeacher` only supports `Faster R-CNN`, it needs to be replaced with `SemiBaseDetector`, example is as below:
+In addition, we also support semi-supervised training for other detection models, such as `RetinaNet` and
+`Cascade R-CNN`. Since `SoftTeacher` only supports `Faster R-CNN`, it needs to be replaced with `SemiBaseDetector`,
+example is as below:
 
 ```python
 _base_ = [
@@ -298,10 +327,12 @@ model = dict(
     semi_test_cfg=dict(predict_on='teacher'))
 ```
 
-Following the semi-supervised training configuration of `SoftTeacher`, change `batch_size` to 2 and `source_ratio` to `[1, 1]`, the experimental results of supervised and semi-supervised training of `RetinaNet`, `Faster R-CNN`, `Cascade R-CNN` and `SoftTeacher` on the 10% coco `train2017` are as below:
+Following the semi-supervised training configuration of `SoftTeacher`, change `batch_size` to 2 and `source_ratio` to
+`[1, 1]`, the experimental results of supervised and semi-supervised training of `RetinaNet`, `Faster R-CNN`,
+`Cascade R-CNN` and `SoftTeacher` on the 10% coco `train2017` are as below:
 
 |      Model       |   Detector    | BackBone | Style | sup-0.1-coco mAP | semi-0.1-coco mAP |
-| :--------------: | :-----------: | :------: | :---: | :--------------: | :---------------: |
+|:----------------:|:-------------:|:--------:|:-----:|:----------------:|:-----------------:|
 | SemiBaseDetector |   RetinaNet   | R-50-FPN | caffe |       23.5       |       27.7        |
 | SemiBaseDetector | Faster R-CNN  | R-50-FPN | caffe |       26.7       |       28.4        |
 | SemiBaseDetector | Cascade R-CNN | R-50-FPN | caffe |       28.0       |       29.7        |
@@ -309,7 +340,8 @@ Following the semi-supervised training configuration of `SoftTeacher`, change `b
 
 ## Configure MeanTeacherHook
 
-Usually, the teacher model is updated by Exponential Moving Average (EMA) the student model, and then the teacher model is optimized with the optimization of the student model, which can be achieved by configuring `custom_hooks`:
+Usually, the teacher model is updated by Exponential Moving Average (EMA) the student model, and then the teacher model
+is optimized with the optimization of the student model, which can be achieved by configuring `custom_hooks`:
 
 ```python
 custom_hooks = [dict(type='MeanTeacherHook')]
@@ -317,7 +349,8 @@ custom_hooks = [dict(type='MeanTeacherHook')]
 
 ## Configure TeacherStudentValLoop
 
-Since there are two models in the teacher-student joint training framework, we can replace `ValLoop` with `TeacherStudentValLoop` to test the accuracy of both models during the training process.
+Since there are two models in the teacher-student joint training framework, we can replace `ValLoop` with
+`TeacherStudentValLoop` to test the accuracy of both models during the training process.
 
 ```python
 val_cfg = dict(type='TeacherStudentValLoop')

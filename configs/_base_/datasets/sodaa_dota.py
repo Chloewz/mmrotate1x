@@ -1,6 +1,6 @@
 # dataset settings
 dataset_type = "SODAA_DOTADataset"
-data_root = "/mnt/d/exp/sodaa_sob/datasets_small/"
+data_root = "/mnt/d/exp/sodaa_sob/datasets-similiar/"
 backend_args = None
 
 train_pipeline = [
@@ -64,7 +64,7 @@ val_dataloader = dict(
         pipeline=val_pipeline,
     ),
 )
-# test_dataloader = val_dataloader
+test_dataloader = val_dataloader
 # test_dataloader = dict(
 #     batch_size=1,
 #     num_workers=2,

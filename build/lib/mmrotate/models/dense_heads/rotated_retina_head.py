@@ -1,7 +1,25 @@
 # Copyright (c) OpenMMLab. All rights reserved.
+import copy
 from mmdet.models.dense_heads import RetinaHead
-from mmdet.structures.bbox import get_box_tensor
+from mmengine.structures import InstanceData
+from mmdet.structures.bbox import BaseBoxes, cat_boxes, get_box_tensor
+from mmengine.config import ConfigDict
+# from mmdet.structures.bbox import get_box_tensor
+from typing import List, Optional, Tuple
+from mmdet.models.utils import (
+    filter_scores_and_topk,
+    select_single_mlvl,
+)
+from mmdet.structures import SampleList
+from mmdet.utils import (
+    ConfigType,
+    InstanceList,
+    OptConfigType,
+    OptInstanceList,
+    OptMultiConfig,
+)
 from torch import Tensor
+import torch
 
 from mmrotate.registry import MODELS
 
@@ -15,17 +33,21 @@ class RotatedRetinaHead(RetinaHead):
             Defaults to 'normal'.
     """
 
-    def __init__(self,
-                 *args,
-                 loss_bbox_type: str = 'normal',
-                 **kwargs) -> None:
+    def __init__(self, *args, loss_bbox_type: str = "normal", **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.loss_bbox_type = loss_bbox_type
 
-    def loss_by_feat_single(self, cls_score: Tensor, bbox_pred: Tensor,
-                            anchors: Tensor, labels: Tensor,
-                            label_weights: Tensor, bbox_targets: Tensor,
-                            bbox_weights: Tensor, avg_factor: int) -> tuple:
+    def loss_by_feat_single(
+            self,
+            cls_score: Tensor,
+            bbox_pred: Tensor,
+            anchors: Tensor,
+            labels: Tensor,
+            label_weights: Tensor,
+            bbox_targets: Tensor,
+            bbox_weights: Tensor,
+            avg_factor: int,
+    ) -> tuple:
         """Calculate the loss of a single scale level based on the features
         extracted by the detection head.
 
@@ -55,19 +77,19 @@ class RotatedRetinaHead(RetinaHead):
         # print(labels.shape)
         label_weights = label_weights.reshape(-1)
         # print(cls_score.shape)
-        cls_score = cls_score.permute(0, 2, 3,
-                                      1).reshape(-1, self.cls_out_channels)
+        cls_score = cls_score.permute(0, 2, 3, 1).reshape(-1, self.cls_out_channels)
         loss_cls = self.loss_cls(
-            cls_score, labels, label_weights, avg_factor=avg_factor)
+            cls_score, labels, label_weights, avg_factor=avg_factor
+        )
         # regression loss
         target_dim = bbox_targets.size(-1)
         bbox_targets = bbox_targets.reshape(-1, target_dim)
         bbox_weights = bbox_weights.reshape(-1, target_dim)
-        bbox_pred = bbox_pred.permute(0, 2, 3,
-                                      1).reshape(-1,
-                                                 self.bbox_coder.encode_size)
+        bbox_pred = bbox_pred.permute(0, 2, 3, 1).reshape(
+            -1, self.bbox_coder.encode_size
+        )
 
-        if self.reg_decoded_bbox and (self.loss_bbox_type != 'kfiou'):
+        if self.reg_decoded_bbox and (self.loss_bbox_type != "kfiou"):
             # When the regression loss (e.g. `IouLoss`, `GIouLoss`)
             # is applied directly on the decoded bounding boxes, it
             # decodes the already encoded coordinates to absolute format.
@@ -75,10 +97,11 @@ class RotatedRetinaHead(RetinaHead):
             bbox_pred = self.bbox_coder.decode(anchors, bbox_pred)
             bbox_pred = get_box_tensor(bbox_pred)
 
-        if self.loss_bbox_type == 'normal':
+        if self.loss_bbox_type == "normal":
             loss_bbox = self.loss_bbox(
-                bbox_pred, bbox_targets, bbox_weights, avg_factor=avg_factor)
-        elif self.loss_bbox_type == 'kfiou':
+                bbox_pred, bbox_targets, bbox_weights, avg_factor=avg_factor
+            )
+        elif self.loss_bbox_type == "kfiou":
             # When the regression loss (e.g. `KFLoss`)
             # is applied on both the delta and decoded boxes.
             anchors = anchors.reshape(-1, anchors.size(-1))
@@ -92,7 +115,8 @@ class RotatedRetinaHead(RetinaHead):
                 bbox_weights,
                 pred_decode=bbox_pred_decode,
                 targets_decode=bbox_targets_decode,
-                avg_factor=avg_factor)
+                avg_factor=avg_factor,
+            )
         else:
             raise NotImplementedError
 

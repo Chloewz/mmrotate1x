@@ -34,36 +34,38 @@ class RefineSingleStageDetector(BaseDetector):
             Defaults to None
     """
 
-    def __init__(self,
-                 backbone: ConfigType,
-                 neck: OptConfigType = None,
-                 bbox_head_init: OptConfigType = None,
-                 bbox_head_refine: List[OptConfigType] = None,
-                 train_cfg: OptConfigType = None,
-                 test_cfg: OptConfigType = None,
-                 data_preprocessor: OptConfigType = None,
-                 init_cfg: OptMultiConfig = None) -> None:
-        super().__init__(
-            data_preprocessor=data_preprocessor, init_cfg=init_cfg)
+    def __init__(
+        self,
+        backbone: ConfigType,
+        neck: OptConfigType = None,
+        bbox_head_init: OptConfigType = None,
+        bbox_head_refine: List[OptConfigType] = None,
+        train_cfg: OptConfigType = None,
+        test_cfg: OptConfigType = None,
+        data_preprocessor: OptConfigType = None,
+        init_cfg: OptMultiConfig = None,
+    ) -> None:
+        super().__init__(data_preprocessor=data_preprocessor, init_cfg=init_cfg)
         self.backbone = MODELS.build(backbone)
         if neck is not None:
             self.neck = MODELS.build(neck)
         if train_cfg is not None:
-            bbox_head_init.update(train_cfg=train_cfg['init'])
+            bbox_head_init.update(train_cfg=train_cfg["init"])
         bbox_head_init.update(test_cfg=test_cfg)
         self.bbox_head_init = MODELS.build(bbox_head_init)
         self.num_refine_stages = len(bbox_head_refine)
         self.bbox_head_refine = ModuleList()
         for i, refine_head in enumerate(bbox_head_refine):
             if train_cfg is not None:
-                refine_head.update(train_cfg=train_cfg['refine'][i])
+                refine_head.update(train_cfg=train_cfg["refine"][i])
             refine_head.update(test_cfg=test_cfg)
             self.bbox_head_refine.append(MODELS.build(refine_head))
         self.train_cfg = train_cfg
         self.test_cfg = test_cfg
 
-    def loss(self, batch_inputs: Tensor,
-             batch_data_samples: SampleList) -> Union[dict, list]:
+    def loss(
+        self, batch_inputs: Tensor, batch_data_samples: SampleList
+    ) -> Union[dict, list]:
         """Calculate losses from a batch of inputs and data samples.
 
         Args:
@@ -81,15 +83,17 @@ class RefineSingleStageDetector(BaseDetector):
         losses = dict()
         outs = self.bbox_head_init(x)
         outputs = unpack_gt_instances(batch_data_samples)
-        (batch_gt_instances, batch_gt_instances_ignore,
-         batch_img_metas) = outputs
-        loss_inputs = outs + (batch_gt_instances, batch_img_metas,
-                              batch_gt_instances_ignore)
+        (batch_gt_instances, batch_gt_instances_ignore, batch_img_metas) = outputs
+        loss_inputs = outs + (
+            batch_gt_instances,
+            batch_img_metas,
+            batch_gt_instances_ignore,
+        )
         init_losses = self.bbox_head_init.loss_by_feat(*loss_inputs)
         keys = init_losses.keys()
         for key in list(keys):
-            if 'loss' in key and 'init' not in key:
-                init_losses[f'{key}_init'] = init_losses.pop(key)
+            if "loss" in key and "init" not in key:
+                init_losses[f"{key}_init"] = init_losses.pop(key)
         losses.update(init_losses)
 
         rois = self.bbox_head_init.filter_bboxes(*outs)
@@ -97,19 +101,23 @@ class RefineSingleStageDetector(BaseDetector):
             weight = self.train_cfg.stage_loss_weights[i]
             x_refine = self.bbox_head_refine[i].feature_refine(x, rois)
             outs = self.bbox_head_refine[i](x_refine)
-            loss_inputs = outs + (batch_gt_instances, batch_img_metas,
-                                  batch_gt_instances_ignore)
+            loss_inputs = outs + (
+                batch_gt_instances,
+                batch_img_metas,
+                batch_gt_instances_ignore,
+            )
             refine_losses = self.bbox_head_refine[i].loss_by_feat(
-                *loss_inputs, rois=rois)
+                *loss_inputs, rois=rois
+            )
             keys = refine_losses.keys()
             for key in list(keys):
-                if 'loss' in key and 'refine' not in key:
+                if "loss" in key and "refine" not in key:
                     loss = refine_losses.pop(key)
                     if isinstance(loss, Sequence):
                         loss = [item * weight for item in loss]
                     else:
                         loss = loss * weight
-                    refine_losses[f'{key}_refine_{i}'] = loss
+                    refine_losses[f"{key}_refine_{i}"] = loss
             losses.update(refine_losses)
 
             if i + 1 in range(self.num_refine_stages):
@@ -117,10 +125,9 @@ class RefineSingleStageDetector(BaseDetector):
 
         return losses
 
-    def predict(self,
-                batch_inputs: Tensor,
-                batch_data_samples: SampleList,
-                rescale: bool = True) -> SampleList:
+    def predict(
+        self, batch_inputs: Tensor, batch_data_samples: SampleList, rescale: bool = True
+    ) -> SampleList:
         """Predict results from a batch of inputs and data samples with post-
         processing.
 
@@ -154,20 +161,19 @@ class RefineSingleStageDetector(BaseDetector):
             if i + 1 in range(self.num_refine_stages):
                 rois = self.bbox_head_refine[i].refine_bboxes(*outs, rois)
 
-        batch_img_metas = [
-            data_samples.metainfo for data_samples in batch_data_samples
-        ]
+        batch_img_metas = [data_samples.metainfo for data_samples in batch_data_samples]
         predictions = self.bbox_head_refine[-1].predict_by_feat(
-            *outs, rois=rois, batch_img_metas=batch_img_metas, rescale=rescale)
+            *outs, rois=rois, batch_img_metas=batch_img_metas, rescale=rescale
+        )
 
         batch_data_samples = self.add_pred_to_datasample(
-            batch_data_samples, predictions)
+            batch_data_samples, predictions
+        )
         return batch_data_samples
 
     def _forward(
-            self,
-            batch_inputs: Tensor,
-            batch_data_samples: OptSampleList = None) -> Tuple[List[Tensor]]:
+        self, batch_inputs: Tensor, batch_data_samples: OptSampleList = None
+    ) -> Tuple[List[Tensor]]:
         """Network forward process. Usually includes backbone, neck and head
         forward without any post-processing.
 

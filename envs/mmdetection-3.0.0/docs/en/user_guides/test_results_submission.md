@@ -2,11 +2,16 @@
 
 ## Panoptic segmentation test results submission
 
-The following sections introduce how to produce the prediction results of panoptic segmentation models on the COCO test-dev set and submit the predictions to [COCO evaluation server](https://competitions.codalab.org/competitions/19507).
+The following sections introduce how to produce the prediction results of panoptic segmentation models on the COCO
+test-dev set and submit the predictions
+to [COCO evaluation server](https://competitions.codalab.org/competitions/19507).
 
 ### Prerequisites
 
-- Download [COCO test dataset images](http://images.cocodataset.org/zips/test2017.zip), [testing image info](http://images.cocodataset.org/annotations/image_info_test2017.zip), and [panoptic train/val annotations](http://images.cocodataset.org/annotations/panoptic_annotations_trainval2017.zip), then unzip them, put 'test2017' to `data/coco/`, put json files and annotation files to `data/coco/annotations/`.
+-
+Download [COCO test dataset images](http://images.cocodataset.org/zips/test2017.zip), [testing image info](http://images.cocodataset.org/annotations/image_info_test2017.zip),
+and [panoptic train/val annotations](http://images.cocodataset.org/annotations/panoptic_annotations_trainval2017.zip),
+then unzip them, put 'test2017' to `data/coco/`, put json files and annotation files to `data/coco/annotations/`.
 
 ```shell
 # suppose data/coco/ does not exist
@@ -26,7 +31,9 @@ unzip data/coco/panoptic_annotations_trainval2017.zip -d data/coco/
 rm -rf data/coco/test2017.zip data/coco/image_info_test2017.zip data/coco/panoptic_annotations_trainval2017.zip
 ```
 
-- Run the following code to update category information in testing image info. Since the attribute `isthing` is missing in category information of 'image_info_test-dev2017.json', we need to update it with the category information in 'panoptic_val2017.json'.
+- Run the following code to update category information in testing image info. Since the attribute `isthing` is missing
+  in category information of 'image_info_test-dev2017.json', we need to update it with the category information in '
+  panoptic_val2017.json'.
 
 ```shell
 python tools/misc/gen_coco_panoptic_test_info.py data/coco/annotations
@@ -50,7 +57,8 @@ data
 
 ### Inference on coco test-dev
 
-To do inference on coco test-dev, we should update the setting of `test_dataloder` and `test_evaluator` first. There two ways to do this: 1. update them in config file; 2. update them in command line.
+To do inference on coco test-dev, we should update the setting of `test_dataloder` and `test_evaluator` first. There two
+ways to do this: 1. update them in config file; 2. update them in command line.
 
 #### Update them in config file
 
@@ -167,7 +175,11 @@ CUDA_VISIBLE_DEVICES=0 python tools/test.py \
 
 ### Rename files and zip results
 
-After inference, the panoptic segmentation results (a json file and a directory where the masks are stored) will be in `WORK_DIR`. We should rename them according to the naming convention described on [COCO's Website](https://cocodataset.org/#upload). Finally, we need to compress the json and the directory where the masks are stored into a zip file, and rename the zip file according to the naming convention. Note that the zip file should **directly** contains the above two files.
+After inference, the panoptic segmentation results (a json file and a directory where the masks are stored) will be in
+`WORK_DIR`. We should rename them according to the naming convention described
+on [COCO's Website](https://cocodataset.org/#upload). Finally, we need to compress the json and the directory where the
+masks are stored into a zip file, and rename the zip file according to the naming convention. Note that the zip file
+should **directly** contains the above two files.
 
 The commands to rename files and zip results:
 

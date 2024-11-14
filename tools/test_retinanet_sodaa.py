@@ -15,10 +15,14 @@ from mmrotate.utils import register_all_modules
 # TODO: support fuse_conv_bn and format_only
 def parse_args():
     parser = argparse.ArgumentParser(description='Test (and eval) a model')
-    parser.add_argument('config', help='test config file path')
-    parser.add_argument('checkpoint', help='checkpoint file')
+    parser.add_argument('--config',
+                        default='/home/odysseus/pyFiles/mmrotate1x/configs/sodaa-benchmarks/rotated-retinanet-rbox-le90_r50_fpn_1x_dota.py',
+                        help='test config file path')
+    parser.add_argument('--checkpoint',
+                        default='/mnt/d/exp/sodaa_sob/a6000result/1107_retinanet/epoch_12.pth',
+                        help='checkpoint file')
     parser.add_argument(
-        '--work-dir',
+        '--work-dir', default='/mnt/d/exp/sodaa_sob/a6000result/1107_retinanet/test/work_dir',
         help='the directory to save the file containing evaluation metrics')
     parser.add_argument(
         '--out',

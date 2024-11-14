@@ -85,8 +85,9 @@ def calculate_confusion_matrix(dataset,
     for idx, per_img_res in enumerate(results):
         res_bboxes = per_img_res['pred_instances']
         gts = dataset.get_data_info(idx)['instances']
-        analyze_per_img_dets(confusion_matrix, gts, res_bboxes, score_thr,
-                             tp_iou_thr, nms_iou_thr)
+        if len(gts) != 0:   # 遇到空标签时也可以继续
+            analyze_per_img_dets(confusion_matrix, gts, res_bboxes, score_thr,
+                                tp_iou_thr, nms_iou_thr)
         prog_bar.update()
     return confusion_matrix
 

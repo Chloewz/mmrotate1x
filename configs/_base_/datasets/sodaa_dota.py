@@ -1,6 +1,6 @@
 # dataset settings
 dataset_type = "SODAA_DOTADataset"
-data_root = "/mnt/d/exp/sodaa_sob/datasets-similiar/"
+data_root = "/mnt/d/exp/sodaa_sob/datasets-similar/"
 backend_args = None
 
 train_pipeline = [
@@ -65,21 +65,21 @@ val_dataloader = dict(
     ),
 )
 test_dataloader = val_dataloader
-test_dataloader = dict(
-    batch_size=1,
-    num_workers=2,
-    persistent_workers=True,
-    drop_last=False,
-    sampler=dict(type="DefaultSampler", shuffle=False),
-    dataset=dict(
-        type=dataset_type,
-        data_root=data_root,
-        ann_file="labels/",
-        data_prefix=dict(img_path="images/"),
-        test_mode=True,
-        pipeline=val_pipeline,
-    ),
-)
+# test_dataloader = dict(
+#     batch_size=1,
+#     num_workers=2,
+#     persistent_workers=True,
+#     drop_last=False,
+#     sampler=dict(type="DefaultSampler", shuffle=False),
+#     dataset=dict(
+#         type=dataset_type,
+#         data_root=data_root,
+#         ann_file="test/labels/",
+#         data_prefix=dict(img_path="test/images/"),
+#         test_mode=True,
+#         pipeline=val_pipeline,
+#     ),
+# )
 
 val_evaluator = dict(type="SODAAMetric", metric="mAP")
 test_evaluator = val_evaluator

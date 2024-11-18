@@ -4,6 +4,7 @@ import mmcv
 import numpy as np
 import os
 import torch
+from pygments.lexer import default
 
 from mmdet.apis import inference_detector, init_detector
 
@@ -36,7 +37,7 @@ def draw_feature_map(model, img_path, save_dir):
     featuremaps = inference_detector(
         model, img
     )  # 这里需要稍微改动检测模型里的simple_test，具体见下面步骤②
-    print(featuremaps.labels.shape)
+    # print(featuremaps.labels.shape)
     i = 2
     for featuremap in featuremaps:
         heatmap = featuremap_2_heatmap(featuremap)
@@ -57,10 +58,10 @@ from argparse import ArgumentParser
 
 def main():
     parser = ArgumentParser()
-    parser.add_argument("img", help="Image file")
-    parser.add_argument("save_dir", help="Dir to save heatmap image")
-    parser.add_argument("config", help="Config file")
-    parser.add_argument("checkpoint", help="Checkpoint file")
+    parser.add_argument("--img", default='/mnt/d/exp/sodaa_sob/featmap_vis_test/00105__800__1300___650.jpg',help="Image file")
+    parser.add_argument("--save_dir", default='/mnt/d/exp/sodaa_sob/featmap_vis_test/out/',help="Dir to save heatmap image")
+    parser.add_argument("--config", default='/home/odysseus/pyFiles/mmrotate1x/configs/sodaa-benchmarks/rotated-retinanet-rbox-le90_r50_fpn_1x_dota.py',help="Config file")
+    parser.add_argument("--checkpoint", default='/mnt/d/exp/sodaa_sob/a6000result/1107_retinanet/epoch_12.pth',help="Checkpoint file")
     parser.add_argument("--device", default="cuda:0", help="Device used for inference")
     args = parser.parse_args()
 

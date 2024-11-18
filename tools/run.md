@@ -24,7 +24,7 @@ python tools/test.py configs/sodaa-benchmarks/rotated-retinanet-rbox-le90_r50_fp
 --show-dir /mnt/d/exp/sodaa_sob/a6000result/1107_retinanet/test/similiar_output_vis/
 
 # SODAA featmap_vis
-python tools/featmap_vis.py /mnt/d/exp/sodaa_sob/featmap_vis_test/00105__800__1300___650.jpg /mnt/d/exp/sodaa_sob/featmap_vis_test/neck/ configs/sodaa-benchmarks/rotated-retinanet-rbox-le90_r50_fpn_1x_dota.py /mnt/d/exp/sodaa_sob/a6000result/1107_retinanet/epoch_12.pth
+python tools/featmap_vis.py /mnt/d/exp/sodaa_sob/featmap_vis_test/00105__800__1300___650.jpg /mnt/d/exp/sodaa_sob/featmap_vis_test/out/ configs/sodaa-benchmarks/rotated-retinanet-rbox-le90_r50_fpn_1x_dota.py /mnt/d/exp/sodaa_sob/a6000result/1107_retinanet/epoch_12.pth
 
 # SODAA RetinaNet Confusion Matrix
 python tools/analysis_tools/confusion_matrix_better.py configs/sodaa-benchmarks/rotated-retinanet-rbox-le90_r50_fpn_1x_dota.py /mnt/d/exp/sodaa_sob/a6000result/1107_retinanet/test/retinanet_sodaa.pkl /mnt/d/exp/sodaa_sob/a6000result/1107_retinanet/test --show

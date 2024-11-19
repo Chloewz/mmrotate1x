@@ -1,26 +1,122 @@
 """
 对相似类别的预测过程进行分析
 """
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from cityscapesscripts.helpers.labels import category
 from scipy.stats import spearmanr, linregress
 import seaborn as sns
 
-sns.set_style("darkgrid")
-sns.set_context("notebook", font_scale=1, rc={"figure.figsize": (12,8)})
+sns.set_style("white")
+sns.set_context("notebook", font_scale=1, rc={"figure.figsize": (12, 8)})
 
-scores_path = (
-    "/home/odysseus/pyFiles/mmrotate1x/tools/special_category/s2anet_refine_scores_scale_1.csv"
-)
-idx_path = "/home/odysseus/pyFiles/mmrotate1x/tools/special_category/s2anet_refine_idx_scale_1.csv"
 
-scores_pd = pd.read_csv(scores_path)
-idx_pd = pd.read_csv(idx_path)
+def plot_similar_category_vis(
+    scores_path: str,
+    idx_path: str,
+    category_x: str,
+    category_y: str,
+    network: str,
+    scale: str,
+    multiple_locator: float,
+    lim: float,
+):
+    scores_pd = pd.read_csv(scores_path)
+    idx_pd = pd.read_csv(idx_path)
 
-scores_pd = scores_pd.iloc[:, 1:]
-idx_values = idx_pd.iloc[:, 1].drop_duplicates().values
-result = scores_pd.loc[idx_values]
+    scores_pd = scores_pd.iloc[:, 1:]
+    idx_values = idx_pd.iloc[:, 1].drop_duplicates().values
+    result = scores_pd.loc[idx_values]
+
+    """
+    以45°为区分线，回归两个类别的图
+    """
+    x = result.iloc[:, 3]
+    y = result.iloc[:, 5]
+
+    similar = result.iloc[:, [2, 7]].copy()
+    similar["label"] = similar.apply(
+        lambda row: category_x if row.iloc[0] > row.iloc[1] else category_y, axis=1
+    )
+
+    similar_x = similar[similar["label"] == category_x]
+    similar_y = similar[similar["label"] == category_y]
+
+    slope_x, intercept_x, _, _, _ = linregress(
+        similar_x.iloc[:, 0], similar_x.iloc[:, 1]
+    )
+    slope_y, intercept_y, _, _, _ = linregress(
+        similar_y.iloc[:, 0], similar_y.iloc[:, 1]
+    )
+
+    angle = np.arctan(np.abs((slope_y - slope_x) / (1 + slope_y * slope_x)))
+    angle_degrees = np.degrees(angle)
+
+    # color = ["#2673EF", '#6AD1A3']
+    # color = ['#6D8EF7',"#EC6B2D"]
+    color = ["#2673EF", "#EC6B2D"]
+
+    p = sns.lmplot(
+        x=similar.columns[0],
+        y=similar.columns[1],
+        hue="label",
+        hue_order=[category_x, category_y],
+        palette=color,
+        data=similar,
+        truncate=True,
+        scatter_kws={"s": 15, "edgecolor": "white"},
+        height=5,
+    )
+    p.set_axis_labels(category_x, category_y)
+
+    plt.text(
+        0.95,
+        0.95,
+        f"Angle: {angle_degrees:.2f}°",
+        transform=plt.gca().transAxes,
+        fontsize=10,
+        verticalalignment="top",
+        horizontalalignment="right",
+        bbox=dict(facecolor="white", alpha=0.7, edgecolor="black"),
+    )
+
+    ax = plt.gca()
+    ax.xaxis.set_major_locator(plt.MultipleLocator(multiple_locator))
+    ax.yaxis.set_major_locator(plt.MultipleLocator(multiple_locator))
+    plt.xlim(0, lim)
+    plt.ylim(0, lim)
+
+    title = "Similar Category " + network + " Scale-" + scale
+    fig_name = "tools/special_category/" + network + "_scale_" + scale + ".png"
+
+    plt.title(title)
+    # plt.savefig("tools/special_category/s2anet_scale_1.png",bbox_inches='tight')
+    plt.savefig(fig_name, dpi=400, bbox_inches="tight")
+    plt.show()
+
+
+if __name__ == "__main__":
+    scores_path = "/home/odysseus/pyFiles/mmrotate1x/tools/special_category/s2anet_refine_scores_scale_1.csv"
+    idx_path = "/home/odysseus/pyFiles/mmrotate1x/tools/special_category/s2anet_refine_idx_scale_1.csv"
+    category_x = "small_vehicle"
+    category_y = "swimming_pool"
+    network = "S2ANet"
+    scale = "1"
+    multiple_locator = 0.1
+    lim = 1
+
+    plot_similar_category_vis(
+        scores_path,
+        idx_path,
+        category_x,
+        category_y,
+        network,
+        scale,
+        multiple_locator,
+        lim,
+    )
 
 """
 相关系数的形式观察
@@ -63,52 +159,3 @@ S2ANet:
 #
 # plt.savefig("tools/special_category/s2anet_scale_2.png")
 # plt.show()
-
-"""
-以45°为区分线，回归两个类别的图
-"""
-x = result.iloc[:, 3]
-y = result.iloc[:, 5]
-
-similar = result.iloc[:,[3,5]].copy()
-similar['label']=similar.apply(lambda row: 'large-vehicle' if row.iloc[0]>row.iloc[1] else 'container', axis=1)
-
-similar_x = similar[similar['label']=='large-vehicle']
-similar_y = similar[similar['label']=='container']
-
-slope_x, intercept_x,_,_,_= linregress(similar_x.iloc[:,0], similar_x.iloc[:,1])
-slope_y, intercept_y,_,_,_= linregress(similar_y.iloc[:,0], similar_y.iloc[:,1])
-
-angle = np.arctan(np.abs((slope_y-slope_x)/(1+slope_y*slope_x)))
-angle_degrees = np.degrees(angle)
-
-p = sns.lmplot(x=similar.columns[0], y=similar.columns[1], hue="label",data=similar, truncate=True,scatter_kws={'s':15},height=5)
-p.set_axis_labels("large_vehicle", "container")
-
-# x_vals = np.linspace(0,1,500)
-# plt.figure(figsize=(10,7))
-#
-# plt.scatter(similar_x.iloc[:,0],similar_x.iloc[:,1],color='blue',label='large-vehicle')
-# plt.scatter(similar_y.iloc[:,0],similar_y.iloc[:,1],color='orange',label='container')
-#
-# plt.plot(x_vals, slope_x*x_vals+intercept_x, color='blue', linestyle='-', linewidth=2)
-# plt.plot(x_vals, slope_y*x_vals+intercept_y, color='orange', linestyle='-', linewidth=2)
-#
-plt.text(
-    0.95, 0.95, f'Angle: {angle_degrees:.2f}°',
-    transform=plt.gca().transAxes, fontsize=10,
-    verticalalignment='top', horizontalalignment='right',
-    bbox=dict(facecolor='white', alpha=0.7, edgecolor='black')
-)
-
-ax = plt.gca()
-ax.xaxis.set_major_locator(plt.MultipleLocator(0.1))
-ax.yaxis.set_major_locator(plt.MultipleLocator(0.1))
-plt.xlim(0,1)
-plt.ylim(0,1)
-
-plt.title(f"Similar Category S2ANet Scale-1")
-# plt.savefig("tools/special_category/s2anet_scale_1.png",bbox_inches='tight')
-plt.savefig("s2anet_scale_1.png",bbox_inches='tight')
-plt.show()
-

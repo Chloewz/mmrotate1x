@@ -1,6 +1,6 @@
 # dataset settings
 dataset_type = "SODAA_DOTADataset"
-data_root = "/mnt/d/exp/sodaa_sob/datasets-similar/"
+data_root = "/mnt/d/exp/sodaa_sob/datasets-small/"
 backend_args = None
 
 train_pipeline = [

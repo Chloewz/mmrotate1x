@@ -1,6 +1,6 @@
 _base_ = [
-    '../_base_/datasets/sodaa_dota.py', '../_base_/schedules/schedule_1x.py',
-    '../_base_/default_runtime.py'
+    '../../_base_/datasets/sodaa_dota.py', '../../_base_/schedules/schedule_1x.py',
+    '../../_base_/default_runtime.py'
 ]
 angle_version = 'le90'
 
@@ -31,7 +31,7 @@ model = dict(
         add_extra_convs='on_input',
         num_outs=5),
     bbox_head=dict(
-        type='mmdet.RetinaHead',
+        type='RotatedATSSHead',
         num_classes=9,
         in_channels=256,
         stacked_convs=4,
@@ -40,8 +40,8 @@ model = dict(
             type='FakeRotatedAnchorGenerator',
             angle_version=angle_version,
             octave_base_scale=4,
-            scales_per_octave=3,
-            ratios=[1.0, 0.5, 2.0],
+            scales_per_octave=1,
+            ratios=[1.0],
             strides=[8, 16, 32, 64, 128]),
         bbox_coder=dict(
             type='DeltaXYWHTRBBoxCoder',
@@ -57,14 +57,13 @@ model = dict(
             gamma=2.0,
             alpha=0.25,
             loss_weight=1.0),
-        loss_bbox=dict(type='mmdet.L1Loss', loss_weight=1.0)),
+        loss_bbox=dict(type='RotatedIoULoss', mode='linear', loss_weight=2.0),
+        loss_centerness=dict(
+            type='mmdet.CrossEntropyLoss', use_sigmoid=True, loss_weight=1.0)),
     train_cfg=dict(
         assigner=dict(
-            type='mmdet.MaxIoUAssigner',
-            pos_iou_thr=0.5,
-            neg_iou_thr=0.4,
-            min_pos_iou=0,
-            ignore_iof_thr=-1,
+            type='RotatedATSSAssigner',
+            topk=9,
             iou_calculator=dict(type='RBboxOverlaps2D')),
         sampler=dict(
             type='mmdet.PseudoSampler'),  # Focal loss should use PseudoSampler

@@ -1,10 +1,10 @@
 # Copyright (c) OpenMMLab. All rights reserved.
-from mmdet.registry import MODELS
+from mmrotate.registry import MODELS
 from mmdet.utils import ConfigType, OptConfigType, OptMultiConfig
-from .single_stage import SingleStageDetector
+from mmdet.models.detectors.single_stage import SingleStageDetector
 
 @MODELS.register_module()
-class RetinaNet(SingleStageDetector):
+class RetinaAngleNet(SingleStageDetector):
     """Implementation of `RetinaNet <https://arxiv.org/abs/1708.02002>`_"""
 
     def __init__(
@@ -17,7 +17,7 @@ class RetinaNet(SingleStageDetector):
         data_preprocessor: OptConfigType = None,
         init_cfg: OptMultiConfig = None,
     ) -> None:
-        super().__init__(
+        super(RetinaAngleNet).__init__(
             backbone=backbone,
             neck=neck,
             bbox_head=bbox_head,
@@ -26,4 +26,6 @@ class RetinaNet(SingleStageDetector):
             data_preprocessor=data_preprocessor,
             init_cfg=init_cfg,
         )
+
+
     

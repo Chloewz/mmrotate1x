@@ -43,6 +43,7 @@ mmrotate/models/dense_heads/h2rbox_v2_head.py
 mmrotate/models/dense_heads/oriented_reppoints_head.py
 mmrotate/models/dense_heads/oriented_rpn_head.py
 mmrotate/models/dense_heads/r3_head.py
+mmrotate/models/dense_heads/retina_angle_head.py
 mmrotate/models/dense_heads/rotated_atss_head.py
 mmrotate/models/dense_heads/rotated_fcos_head.py
 mmrotate/models/dense_heads/rotated_reppoints_head.py
@@ -67,6 +68,7 @@ mmrotate/models/losses/h2rbox_v2_consistency_loss.py
 mmrotate/models/losses/kf_iou_loss.py
 mmrotate/models/losses/label_smoothing_focal_loss.py
 mmrotate/models/losses/rotated_iou_loss.py
+mmrotate/models/losses/sca_loss.py
 mmrotate/models/losses/smooth_focal_loss.py
 mmrotate/models/losses/spatial_border_loss.py
 mmrotate/models/necks/__init__.py

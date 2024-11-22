@@ -14,11 +14,13 @@ from .rotated_rtmdet_head import RotatedRTMDetHead, RotatedRTMDetSepBNHead
 from .s2a_head import S2AHead, S2ARefineHead
 from .sam_reppoints_head import SAMRepPointsHead
 from .epison_hot_head import EpisonHotRefineHead
+from .retina_angle_head import RetinaAngleHead
 
 __all__ = [
     'RotatedRetinaHead', 'OrientedRPNHead', 'RotatedRepPointsHead',
     'SAMRepPointsHead', 'AngleBranchRetinaHead', 'RotatedATSSHead',
     'RotatedFCOSHead', 'OrientedRepPointsHead', 'R3Head', 'R3RefineHead',
     'S2AHead', 'S2ARefineHead', 'CFAHead', 'H2RBoxHead', 'H2RBoxV2Head',
-    'RotatedRTMDetHead', 'RotatedRTMDetSepBNHead', 'EpisonHotRefineHead'
+    'RotatedRTMDetHead', 'RotatedRTMDetSepBNHead', 'EpisonHotRefineHead',
+    'RetinaAngleHead'
 ]

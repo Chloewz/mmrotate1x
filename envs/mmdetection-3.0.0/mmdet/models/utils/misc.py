@@ -426,16 +426,17 @@ def levels_to_images(mlvl_tensor: List[torch.Tensor]) -> List[torch.Tensor]:
 
 def images_to_levels(target, num_levels):
     """Convert targets by image to targets by feature level.
-
+    将目标从按图像分布的形式转换为按特征层级分布的形式
+    将每个图像的目标信息根据不同的特征层级进行分配，尤其在处理多尺度特征图时
     [target_img0, target_img1] -> [target_level0, target_level1, ...]
     """
-    target = stack_boxes(target, 0)
+    target = stack_boxes(target, 0) # 将输入的target数据按第0维（图像维度）进行堆叠
     level_targets = []
-    start = 0
-    for n in num_levels:
+    start = 0   # 目标数据在堆叠后的张量中的起始位置，通过不断更新start，可以在堆叠后的目标张量中找到不同层级的目标框数据
+    for n in num_levels:    # num_levels：每个特征层级上anchor的数量
         end = start + n
         # level_targets.append(target[:, start:end].squeeze(0))
-        level_targets.append(target[:, start:end])
+        level_targets.append(target[:, start:end])  # 切片操作，选择target张量中的一部，表示当前层级
         start = end
     return level_targets
 

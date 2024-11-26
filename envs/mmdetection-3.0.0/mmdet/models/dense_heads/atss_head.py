@@ -398,6 +398,8 @@ class ATSSHead(AnchorHead):
         # anchor number of multi levels
         num_level_anchors = [anchors.size(0) for anchors in anchor_list[0]]
         num_level_anchors_list = [num_level_anchors] * num_imgs
+        # 所有num_level_anchors_list中的元素都指向同一个num_level_anchors
+        # 这样做的目的是为了在多个图像中共享相同的anchor数量信息
 
         # concat all level anchors and flags to a single tensor
         for i in range(num_imgs):
@@ -528,6 +530,8 @@ class ATSSHead(AnchorHead):
         labels = anchors.new_full(
             (num_valid_anchors,), self.num_classes, dtype=torch.long
         )
+        # * torch.new_full根据现有的Tensor创建新张量，保持一致的dtype、device
+        # * 第二个参数是fill_value，填充输出张量的数字（新张量全都填充成了这个数字）
         label_weights = anchors.new_zeros(num_valid_anchors, dtype=torch.float)
 
         pos_inds = sampling_result.pos_inds
@@ -552,6 +556,7 @@ class ATSSHead(AnchorHead):
             label_weights[neg_inds] = 1.0
 
         # map up to original set of anchors
+        # 反映射操作的目的是恢复被过滤掉的anchor的原始数据
         if unmap_outputs:
             num_total_anchors = flat_anchors.size(0)
             anchors = unmap(anchors, num_total_anchors, inside_flags)

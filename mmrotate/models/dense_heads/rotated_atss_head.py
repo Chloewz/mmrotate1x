@@ -113,15 +113,17 @@ class RotatedATSSHead(ATSSHead):
             cls_score (Tensor): Box scores for each scale level
                 Has shape (N, num_anchors * num_classes, H, W).
             bbox_pred (Tensor): Box energies / deltas for each scale
-                level with shape (N, num_anchors * 4, H, W).
+                level with shape (N, num_anchors * 5, H, W).
+            centerness (Tensor): Centerness scores for each scale level
+                with shape (N, 1, H, W).
             anchors (Tensor): Box reference for each scale level with shape
-                (N, num_total_anchors, 4).
+                (N, num_total_anchors, 5).
             labels (Tensor): Labels of each anchors with shape
                 (N, num_total_anchors).
             label_weights (Tensor): Label weights of each anchor with shape
                 (N, num_total_anchors)
             bbox_targets (Tensor): BBox regression targets of each anchor
-                weight shape (N, num_total_anchors, 4).
+                weight shape (N, num_total_anchors, 5).
             avg_factor (float): Average factor that is used to average
                 the loss. When using sampling method, avg_factor is usually
                 the sum of positive and negative priors. When using
@@ -149,8 +151,11 @@ class RotatedATSSHead(ATSSHead):
         )
 
         # FG cat_id: [0, num_classes -1], BG cat_id: num_classes
-        bg_class_ind = self.num_classes
+        # 筛选出正样本的索引
+        bg_class_ind = self.num_classes  # 背景类索引
         pos_inds = ((labels >= 0) & (labels < bg_class_ind)).nonzero().squeeze(1)
+        # 逻辑与操作筛选出既不是忽略样本也不是背景类的样本（正样本）
+        # * squeeze(1)将多余的维度压缩，返回一维的索引数组
 
         if len(pos_inds) > 0:
             pos_bbox_targets = bbox_targets[pos_inds]
@@ -159,8 +164,12 @@ class RotatedATSSHead(ATSSHead):
             pos_centerness = centerness[pos_inds]
 
             centerness_targets = self.centerness_target(pos_anchors, pos_bbox_targets)
+            # 下面两行代码的作用是将正样本的预测框转换为实际的边界框坐标，并以标准格式返回
             pos_decode_bbox_pred = self.bbox_coder.decode(pos_anchors, pos_bbox_pred)
+            # * bbox_coder是一个边界框编码器/解码器对象，负责在坐标变换中进行编码和解码
+            # * decode的作用是将预测值从偏移量形式解码为实际的边界框坐标
             pos_decode_bbox_pred = get_box_tensor(pos_decode_bbox_pred)
+            # * get_box_tensor：用于将解码后的边界框转换为标准的张量格式
             # regression loss
             loss_bbox = self.loss_bbox(
                 pos_decode_bbox_pred,
@@ -184,6 +193,12 @@ class RotatedATSSHead(ATSSHead):
     def centerness_target(self, anchors: Tensor, gts: Tensor) -> Tensor:
         """Calculate the centerness between anchors and gts.
 
+        中心度目标计算
+        计算每个anchor和gt之间的中心度（centerness）
+            首先将旋转框转化为水平框，简化计算
+            分别计算上下、左右方向的距离，使得公式得到中心度
+        中心度的核心思想是，只有中心更靠近目标的预测框才应有更高的权重
+
         Only calculate pos centerness targets, otherwise there may be nan.
 
         Args:
@@ -196,12 +211,14 @@ class RotatedATSSHead(ATSSHead):
         """
         gts = RotatedBoxes(gts).convert_to("hbox").tensor
         anchors_cx, anchors_cy = RotatedBoxes(anchors).centers.unbind(dim=-1)
+        # * torch.unbind()返回指定维度切片后的元组。移除指定维度后，返回一个元组，包含了沿着指定维切片后的各个切片
         l_ = anchors_cx - gts[:, 0]
         t_ = anchors_cy - gts[:, 1]
         r_ = gts[:, 2] - anchors_cx
         b_ = gts[:, 3] - anchors_cy
 
         left_right = torch.stack([l_, r_], dim=1)
+        # * torch.stack沿着一个新维度对输入张量序列进行拼接，序列中所有的张量都应该为相同形状
         top_bottom = torch.stack([t_, b_], dim=1)
         centerness = torch.sqrt(
             (left_right.min(dim=-1)[0] / left_right.max(dim=-1)[0])

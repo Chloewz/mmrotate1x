@@ -8,11 +8,14 @@ from mmcv.cnn import ConvModule
 from mmrotate.registry import MODELS
 from mmdet.models.dense_heads.anchor_head import AnchorHead
 from torch import Tensor
+from mmengine.config import ConfigDict
 
 from mmdet.structures.bbox import cat_boxes, get_box_tensor
-from mmdet.models.utils import images_to_levels, multi_apply
-from typing import List
+from mmdet.models.utils import images_to_levels, multi_apply, filter_scores_and_topk, select_single_mlvl
+from typing import List, Optional
 from mmdet.utils import InstanceList, OptInstanceList, ConfigType
+import copy
+from mmengine.structures import InstanceData
 
 from scipy.stats import linregress
 import numpy as np
@@ -141,7 +144,7 @@ class RetinaAngleHead(AnchorHead):
         if cls_score.size(2) == 128:
             sca = self.sca_regress(cls_score)
         else:
-            sca = 90
+            sca = 0.0
 
         return cls_score, bbox_pred, sca
 
@@ -283,6 +286,239 @@ class RetinaAngleHead(AnchorHead):
         )
         return dict(loss_cls=losses_cls, loss_bbox=losses_bbox, loss_angle=loss_angle)
 
+    def predict_by_feat(self,
+                        cls_scores: List[Tensor],
+                        bbox_preds: List[Tensor],
+                        sca: float,
+                        score_factors: Optional[List[Tensor]] = None,
+                        batch_img_metas: Optional[List[dict]] = None,
+                        cfg: Optional[ConfigDict] = None,
+                        rescale: bool = False,
+                        with_nms: bool = True) -> InstanceList:
+        """Transform a batch of output features extracted from the head into
+        bbox results.
+
+        Note: When score_factors is not None, the cls_scores are
+        usually multiplied by it then obtain the real score used in NMS,
+        such as CenterNess in FCOS, IoU branch in ATSS.
+
+        Args:
+            cls_scores (list[Tensor]): Classification scores for all
+                scale levels, each is a 4D-tensor, has shape
+                (batch_size, num_priors * num_classes, H, W).
+            bbox_preds (list[Tensor]): Box energies / deltas for all
+                scale levels, each is a 4D-tensor, has shape
+                (batch_size, num_priors * 4, H, W).
+            score_factors (list[Tensor], optional): Score factor for
+                all scale level, each is a 4D-tensor, has shape
+                (batch_size, num_priors * 1, H, W). Defaults to None.
+            batch_img_metas (list[dict], Optional): Batch image meta info.
+                Defaults to None.
+            cfg (ConfigDict, optional): Test / postprocessing
+                configuration, if None, test_cfg would be used.
+                Defaults to None.
+            rescale (bool): If True, return boxes in original image space.
+                Defaults to False.
+            with_nms (bool): If True, do nms before return boxes.
+                Defaults to True.
+
+        Returns:
+            list[:obj:`InstanceData`]: Object detection results of each image
+            after the post process. Each item usually contains following keys.
+
+                - scores (Tensor): Classification scores, has a shape
+                  (num_instance, )
+                - labels (Tensor): Labels of bboxes, has a shape
+                  (num_instances, ).
+                - bboxes (Tensor): Has a shape (num_instances, 4),
+                  the last dimension 4 arrange as (x1, y1, x2, y2).
+        """
+        assert len(cls_scores) == len(bbox_preds)
+
+        if score_factors is None:
+            # e.g. Retina, FreeAnchor, Foveabox, etc.
+            with_score_factors = False
+        else:
+            # e.g. FCOS, PAA, ATSS, AutoAssign, etc.
+            with_score_factors = True
+            assert len(cls_scores) == len(score_factors)
+
+        num_levels = len(cls_scores)
+
+        featmap_sizes = [cls_scores[i].shape[-2:] for i in range(num_levels)]
+        mlvl_priors = self.prior_generator.grid_priors(
+            featmap_sizes,
+            dtype=cls_scores[0].dtype,
+            device=cls_scores[0].device)
+
+        result_list = []
+
+        for img_id in range(len(batch_img_metas)):
+            img_meta = batch_img_metas[img_id]
+            cls_score_list = select_single_mlvl(
+                cls_scores, img_id, detach=True)
+            bbox_pred_list = select_single_mlvl(
+                bbox_preds, img_id, detach=True)
+            # sca_list = select_single_mlvl(sca, img_id, detach=True)
+            if with_score_factors:
+                score_factor_list = select_single_mlvl(
+                    score_factors, img_id, detach=True)
+            else:
+                score_factor_list = [None for _ in range(num_levels)]
+
+            results = self._predict_by_feat_single(
+                cls_score_list=cls_score_list,
+                bbox_pred_list=bbox_pred_list,
+                sca_list=sca,
+                score_factor_list=score_factor_list,
+                mlvl_priors=mlvl_priors,
+                img_meta=img_meta,
+                cfg=cfg,
+                rescale=rescale,
+                with_nms=with_nms)
+            result_list.append(results)
+        return result_list
+
+    def _predict_by_feat_single(self,
+                                cls_score_list: List[Tensor],
+                                bbox_pred_list: List[Tensor],
+                                sca_list: List[Tensor],
+                                score_factor_list: List[Tensor],
+                                mlvl_priors: List[Tensor],
+                                img_meta: dict,
+                                cfg: ConfigDict,
+                                rescale: bool = False,
+                                with_nms: bool = True) -> InstanceData:
+        """Transform a single image's features extracted from the head into
+        bbox results.
+
+        Args:
+            cls_score_list (list[Tensor]): Box scores from all scale
+                levels of a single image, each item has shape
+                (num_priors * num_classes, H, W).
+            bbox_pred_list (list[Tensor]): Box energies / deltas from
+                all scale levels of a single image, each item has shape
+                (num_priors * 4, H, W).
+            score_factor_list (list[Tensor]): Score factor from all scale
+                levels of a single image, each item has shape
+                (num_priors * 1, H, W).
+            mlvl_priors (list[Tensor]): Each element in the list is
+                the priors of a single level in feature pyramid. In all
+                anchor-based methods, it has shape (num_priors, 4). In
+                all anchor-free methods, it has shape (num_priors, 2)
+                when `with_stride=True`, otherwise it still has shape
+                (num_priors, 4).
+            img_meta (dict): Image meta info.
+            cfg (mmengine.Config): Test / postprocessing configuration,
+                if None, test_cfg would be used.
+            rescale (bool): If True, return boxes in original image space.
+                Defaults to False.
+            with_nms (bool): If True, do nms before return boxes.
+                Defaults to True.
+
+        Returns:
+            :obj:`InstanceData`: Detection results of each image
+            after the post process.
+            Each item usually contains following keys.
+
+                - scores (Tensor): Classification scores, has a shape
+                  (num_instance, )
+                - labels (Tensor): Labels of bboxes, has a shape
+                  (num_instances, ).
+                - bboxes (Tensor): Has a shape (num_instances, 4),
+                  the last dimension 4 arrange as (x1, y1, x2, y2).
+        """
+        if score_factor_list[0] is None:
+            # e.g. Retina, FreeAnchor, etc.
+            with_score_factors = False
+        else:
+            # e.g. FCOS, PAA, ATSS, etc.
+            with_score_factors = True
+
+        cfg = self.test_cfg if cfg is None else cfg
+        cfg = copy.deepcopy(cfg)
+        img_shape = img_meta['img_shape']
+        nms_pre = cfg.get('nms_pre', -1)
+
+        mlvl_bbox_preds = []
+        mlvl_valid_priors = []
+        mlvl_scores = []
+        mlvl_labels = []
+        mlvl_scas = []
+        if with_score_factors:
+            mlvl_score_factors = []
+        else:
+            mlvl_score_factors = None
+        for level_idx, (cls_score, bbox_pred, sca, score_factor, priors) in \
+                enumerate(zip(cls_score_list, bbox_pred_list, sca_list,
+                              score_factor_list, mlvl_priors)):
+
+            assert cls_score.size()[-2:] == bbox_pred.size()[-2:]
+
+            dim = self.bbox_coder.encode_size
+            bbox_pred = bbox_pred.permute(1, 2, 0).reshape(-1, dim)
+            if with_score_factors:
+                score_factor = score_factor.permute(1, 2,
+                                                    0).reshape(-1).sigmoid()
+            cls_score = cls_score.permute(1, 2,
+                                          0).reshape(-1, self.cls_out_channels)
+            if self.use_sigmoid_cls:
+                scores = cls_score.sigmoid()
+            else:
+                # remind that we set FG labels to [0, num_class-1]
+                # since mmdet v2.0
+                # BG cat_id: num_class
+                scores = cls_score.softmax(-1)[:, :-1]
+
+            # After https://github.com/open-mmlab/mmdetection/pull/6268/,
+            # this operation keeps fewer bboxes under the same `nms_pre`.
+            # There is no difference in performance for most models. If you
+            # find a slight drop in performance, you can set a larger
+            # `nms_pre` than before.
+            score_thr = cfg.get('score_thr', 0)
+
+            results = filter_scores_and_topk(
+                scores, score_thr, nms_pre,
+                dict(bbox_pred=bbox_pred, priors=priors))
+            scores, labels, keep_idxs, filtered_results = results
+
+            bbox_pred = filtered_results['bbox_pred']
+            priors = filtered_results['priors']
+
+            if with_score_factors:
+                score_factor = score_factor[keep_idxs]
+
+            mlvl_bbox_preds.append(bbox_pred)
+            mlvl_valid_priors.append(priors)
+            mlvl_scores.append(scores)
+            mlvl_labels.append(labels)
+            mlvl_scas.append(sca)
+
+            if with_score_factors:
+                mlvl_score_factors.append(score_factor)
+
+        bbox_pred = torch.cat(mlvl_bbox_preds)
+        # print(bbox_pred.shape)
+        priors = cat_boxes(mlvl_valid_priors)
+        bboxes = self.bbox_coder.decode(priors, bbox_pred, max_shape=img_shape)
+
+        results = InstanceData()
+        results.bboxes = bboxes
+        results.scores = torch.cat(mlvl_scores)
+        results.labels = torch.cat(mlvl_labels)
+        results.sca = torch.tensor(mlvl_scas[0])
+        if with_score_factors:
+            results.score_factors = torch.cat(mlvl_score_factors)
+
+        # print(results.bboxes.shape)
+
+        return self._bbox_post_process(
+            results=results,
+            cfg=cfg,
+            rescale=rescale,
+            with_nms=with_nms,
+            img_meta=img_meta)
+
 
 class SimilarCategoryAngleRegression(nn.Module):
     def __init__(self, num_classes):
@@ -297,7 +533,7 @@ class SimilarCategoryAngleRegression(nn.Module):
         scores = cls_score_angle.sigmoid()
         scores_mean = scores.mean(dim=0)
 
-        keep_idxs = self.filte_scores(scores_mean, 0.05, 20000)
+        keep_idxs = self.filte_scores(scores_mean, 0.05, 2000)
         if keep_idxs.size(0) != 0:
             keep_idxs = torch.unique(keep_idxs)
             scores_mean = scores_mean[keep_idxs]
@@ -306,22 +542,26 @@ class SimilarCategoryAngleRegression(nn.Module):
             category_y = "contianer"
 
             similar_category = scores_mean[:, [3, 5]].clone()
-            similar_category_np = similar_category.numpy()
-            labels = np.wher(
+            similar_category_np = similar_category.detach().cpu().numpy()
+            labels = np.where(
                 similar_category_np[:, 0] > similar_category_np[:, 1],
                 category_x,
                 category_y,
             )
+
             similar_x = similar_category_np[labels == category_x]
             similar_y = similar_category_np[labels == category_y]
 
-            slope_x, _, _, _, _ = linregress(similar_x[:, 0], similar_x[:, 1])
-            slope_y, _, _, _, _ = linregress(similar_y[:, 0], similar_y[:, 1])
+            if len(similar_x) != 0 and len(similar_y.shape) != 0:
+                slope_x, _, _, _, _ = linregress(similar_x[:, 0], similar_x[:, 1])
+                slope_y, _, _, _, _ = linregress(similar_y[:, 0], similar_y[:, 1])
 
-            angle = np.arctan(np.abs((slope_y - slope_x) / (1 + slope_y * slope_x)))
-            sca = np.degrees(angle)
+                angle = np.arctan(np.abs((slope_y - slope_x) / (1 + slope_y * slope_x)))
+                sca = np.degrees(angle)
+            else:
+                sca = 0.0
         else:
-            sca = 90
+            sca = 0.0
         return sca
 
     def filte_scores(self, scores, scores_threshold, topk):

@@ -60,7 +60,9 @@ class RotatedATSSHead(ATSSHead):
                     stride=1,
                     padding=1,
                     conv_cfg=self.conv_cfg,
-                    norm_cfg=self.norm_cfg))
+                    norm_cfg=self.norm_cfg,
+                )
+            )
             self.reg_convs.append(
                 ConvModule(
                     chn,
@@ -69,46 +71,59 @@ class RotatedATSSHead(ATSSHead):
                     stride=1,
                     padding=1,
                     conv_cfg=self.conv_cfg,
-                    norm_cfg=self.norm_cfg))
+                    norm_cfg=self.norm_cfg,
+                )
+            )
         pred_pad_size = self.pred_kernel_size // 2
         self.atss_cls = nn.Conv2d(
             self.feat_channels,
             self.num_anchors * self.cls_out_channels,
             self.pred_kernel_size,
-            padding=pred_pad_size)
+            padding=pred_pad_size,
+        )
         reg_dim = self.bbox_coder.encode_size
         self.atss_reg = nn.Conv2d(
             self.feat_channels,
             self.num_base_priors * reg_dim,
             self.pred_kernel_size,
-            padding=pred_pad_size)
+            padding=pred_pad_size,
+        )
         self.atss_centerness = nn.Conv2d(
             self.feat_channels,
             self.num_base_priors * 1,
             self.pred_kernel_size,
-            padding=pred_pad_size)
-        self.scales = nn.ModuleList(
-            [Scale(1.0) for _ in self.prior_generator.strides])
+            padding=pred_pad_size,
+        )
+        self.scales = nn.ModuleList([Scale(1.0) for _ in self.prior_generator.strides])
 
-    def loss_by_feat_single(self, anchors: Tensor, cls_score: Tensor,
-                            bbox_pred: Tensor, centerness: Tensor,
-                            labels: Tensor, label_weights: Tensor,
-                            bbox_targets: Tensor, avg_factor: float) -> dict:
+    def loss_by_feat_single(
+        self,
+        anchors: Tensor,
+        cls_score: Tensor,
+        bbox_pred: Tensor,
+        centerness: Tensor,
+        labels: Tensor,
+        label_weights: Tensor,
+        bbox_targets: Tensor,
+        avg_factor: float,
+    ) -> dict:
         """Calculate the loss of a single scale level based on the features
         extracted by the detection head.
         Args:
             cls_score (Tensor): Box scores for each scale level
                 Has shape (N, num_anchors * num_classes, H, W).
             bbox_pred (Tensor): Box energies / deltas for each scale
-                level with shape (N, num_anchors * 4, H, W).
+                level with shape (N, num_anchors * 5, H, W).
+            centerness (Tensor): Centerness scores for each scale level
+                with shape (N, 1, H, W).
             anchors (Tensor): Box reference for each scale level with shape
-                (N, num_total_anchors, 4).
+                (N, num_total_anchors, 5).
             labels (Tensor): Labels of each anchors with shape
                 (N, num_total_anchors).
             label_weights (Tensor): Label weights of each anchor with shape
                 (N, num_total_anchors)
             bbox_targets (Tensor): BBox regression targets of each anchor
-                weight shape (N, num_total_anchors, 4).
+                weight shape (N, num_total_anchors, 5).
             avg_factor (float): Average factor that is used to average
                 the loss. When using sampling method, avg_factor is usually
                 the sum of positive and negative priors. When using
@@ -119,8 +134,11 @@ class RotatedATSSHead(ATSSHead):
         """
         dim = self.bbox_coder.encode_size
         anchors = anchors.reshape(-1, dim)
-        cls_score = cls_score.permute(0, 2, 3, 1).reshape(
-            -1, self.cls_out_channels).contiguous()
+        cls_score = (
+            cls_score.permute(0, 2, 3, 1)
+            .reshape(-1, self.cls_out_channels)
+            .contiguous()
+        )
         bbox_pred = bbox_pred.permute(0, 2, 3, 1).reshape(-1, dim)
         centerness = centerness.permute(0, 2, 3, 1).reshape(-1)
         bbox_targets = bbox_targets.reshape(-1, dim)
@@ -129,12 +147,15 @@ class RotatedATSSHead(ATSSHead):
 
         # classification loss
         loss_cls = self.loss_cls(
-            cls_score, labels, label_weights, avg_factor=avg_factor)
+            cls_score, labels, label_weights, avg_factor=avg_factor
+        )
 
         # FG cat_id: [0, num_classes -1], BG cat_id: num_classes
-        bg_class_ind = self.num_classes
-        pos_inds = ((labels >= 0)
-                    & (labels < bg_class_ind)).nonzero().squeeze(1)
+        # 筛选出正样本的索引
+        bg_class_ind = self.num_classes  # 背景类索引
+        pos_inds = ((labels >= 0) & (labels < bg_class_ind)).nonzero().squeeze(1)
+        # 逻辑与操作筛选出既不是忽略样本也不是背景类的样本（正样本）
+        # * squeeze(1)将多余的维度压缩，返回一维的索引数组
 
         if len(pos_inds) > 0:
             pos_bbox_targets = bbox_targets[pos_inds]
@@ -142,31 +163,41 @@ class RotatedATSSHead(ATSSHead):
             pos_anchors = anchors[pos_inds]
             pos_centerness = centerness[pos_inds]
 
-            centerness_targets = self.centerness_target(
-                pos_anchors, pos_bbox_targets)
-            pos_decode_bbox_pred = self.bbox_coder.decode(
-                pos_anchors, pos_bbox_pred)
+            centerness_targets = self.centerness_target(pos_anchors, pos_bbox_targets)
+            # 下面两行代码的作用是将正样本的预测框转换为实际的边界框坐标，并以标准格式返回
+            pos_decode_bbox_pred = self.bbox_coder.decode(pos_anchors, pos_bbox_pred)
+            # * bbox_coder是一个边界框编码器/解码器对象，负责在坐标变换中进行编码和解码
+            # * decode的作用是将预测值从偏移量形式解码为实际的边界框坐标
             pos_decode_bbox_pred = get_box_tensor(pos_decode_bbox_pred)
+            # * get_box_tensor：用于将解码后的边界框转换为标准的张量格式
             # regression loss
             loss_bbox = self.loss_bbox(
                 pos_decode_bbox_pred,
                 pos_bbox_targets,
                 weight=centerness_targets,
-                avg_factor=1.0)
+                avg_factor=1.0,
+            )
 
             # centerness loss
             loss_centerness = self.loss_centerness(
-                pos_centerness, centerness_targets, avg_factor=avg_factor)
+                pos_centerness, centerness_targets, avg_factor=avg_factor
+            )
 
         else:
             loss_bbox = bbox_pred.sum() * 0
             loss_centerness = centerness.sum() * 0
-            centerness_targets = bbox_targets.new_tensor(0.)
+            centerness_targets = bbox_targets.new_tensor(0.0)
 
         return loss_cls, loss_bbox, loss_centerness, centerness_targets.sum()
 
     def centerness_target(self, anchors: Tensor, gts: Tensor) -> Tensor:
         """Calculate the centerness between anchors and gts.
+
+        中心度目标计算
+        计算每个anchor和gt之间的中心度（centerness）
+            首先将旋转框转化为水平框，简化计算
+            分别计算上下、左右方向的距离，使得公式得到中心度
+        中心度的核心思想是，只有中心更靠近目标的预测框才应有更高的权重
 
         Only calculate pos centerness targets, otherwise there may be nan.
 
@@ -178,29 +209,34 @@ class RotatedATSSHead(ATSSHead):
         Returns:
             Tensor: Centerness between anchors and gts.
         """
-        gts = RotatedBoxes(gts).convert_to('hbox').tensor
+        gts = RotatedBoxes(gts).convert_to("hbox").tensor
         anchors_cx, anchors_cy = RotatedBoxes(anchors).centers.unbind(dim=-1)
+        # * torch.unbind()返回指定维度切片后的元组。移除指定维度后，返回一个元组，包含了沿着指定维切片后的各个切片
         l_ = anchors_cx - gts[:, 0]
         t_ = anchors_cy - gts[:, 1]
         r_ = gts[:, 2] - anchors_cx
         b_ = gts[:, 3] - anchors_cy
 
         left_right = torch.stack([l_, r_], dim=1)
+        # * torch.stack沿着一个新维度对输入张量序列进行拼接，序列中所有的张量都应该为相同形状
         top_bottom = torch.stack([t_, b_], dim=1)
         centerness = torch.sqrt(
-            (left_right.min(dim=-1)[0] / left_right.max(dim=-1)[0]) *
-            (top_bottom.min(dim=-1)[0] / top_bottom.max(dim=-1)[0]))
+            (left_right.min(dim=-1)[0] / left_right.max(dim=-1)[0])
+            * (top_bottom.min(dim=-1)[0] / top_bottom.max(dim=-1)[0])
+        )
         assert not torch.isnan(centerness).any()
         return centerness
 
-    def _get_targets_single(self,
-                            flat_anchors: Tensor,
-                            valid_flags: Tensor,
-                            num_level_anchors: List[int],
-                            gt_instances: InstanceData,
-                            img_meta: dict,
-                            gt_instances_ignore: Optional[InstanceData] = None,
-                            unmap_outputs: bool = True) -> tuple:
+    def _get_targets_single(
+        self,
+        flat_anchors: Tensor,
+        valid_flags: Tensor,
+        num_level_anchors: List[int],
+        gt_instances: InstanceData,
+        img_meta: dict,
+        gt_instances_ignore: Optional[InstanceData] = None,
+        unmap_outputs: bool = True,
+    ) -> tuple:
         """Compute regression, classification targets for anchors in a single
         image.
 
@@ -238,35 +274,44 @@ class RotatedATSSHead(ATSSHead):
                     (num_neg,).
                 sampling_result (:obj:`SamplingResult`): Sampling results.
         """
-        inside_flags = anchor_inside_flags(flat_anchors, valid_flags,
-                                           img_meta['img_shape'][:2],
-                                           self.train_cfg['allowed_border'])
+        inside_flags = anchor_inside_flags(
+            flat_anchors,
+            valid_flags,
+            img_meta["img_shape"][:2],
+            self.train_cfg["allowed_border"],
+        )
         if not inside_flags.any():
             raise ValueError(
-                'There is no valid anchor inside the image boundary. Please '
-                'check the image size and anchor sizes, or set '
-                '``allowed_border`` to -1 to skip the condition.')
+                "There is no valid anchor inside the image boundary. Please "
+                "check the image size and anchor sizes, or set "
+                "``allowed_border`` to -1 to skip the condition."
+            )
         # assign gt and sample anchors
         anchors = flat_anchors[inside_flags]
 
         num_level_anchors_inside = self.get_num_level_anchors_inside(
-            num_level_anchors, inside_flags)
+            num_level_anchors, inside_flags
+        )
         pred_instances = InstanceData(priors=anchors)
-        assign_result = self.assigner.assign(pred_instances,
-                                             num_level_anchors_inside,
-                                             gt_instances, gt_instances_ignore)
+        assign_result = self.assigner.assign(
+            pred_instances, num_level_anchors_inside, gt_instances, gt_instances_ignore
+        )
 
-        sampling_result = self.sampler.sample(assign_result, pred_instances,
-                                              gt_instances)
+        sampling_result = self.sampler.sample(
+            assign_result, pred_instances, gt_instances
+        )
 
         num_valid_anchors = anchors.shape[0]
-        target_dim = gt_instances.bboxes.size(-1) if self.reg_decoded_bbox \
+        target_dim = (
+            gt_instances.bboxes.size(-1)
+            if self.reg_decoded_bbox
             else self.bbox_coder.encode_size
+        )
         bbox_targets = anchors.new_zeros(num_valid_anchors, target_dim)
         bbox_weights = anchors.new_zeros(num_valid_anchors, target_dim)
-        labels = anchors.new_full((num_valid_anchors, ),
-                                  self.num_classes,
-                                  dtype=torch.long)
+        labels = anchors.new_full(
+            (num_valid_anchors,), self.num_classes, dtype=torch.long
+        )
         label_weights = anchors.new_zeros(num_valid_anchors, dtype=torch.float)
 
         pos_inds = sampling_result.pos_inds
@@ -277,16 +322,17 @@ class RotatedATSSHead(ATSSHead):
                 pos_bbox_targets = get_box_tensor(pos_bbox_targets)
             else:
                 pos_bbox_targets = self.bbox_coder.encode(
-                    sampling_result.pos_priors, sampling_result.pos_gt_bboxes)
+                    sampling_result.pos_priors, sampling_result.pos_gt_bboxes
+                )
 
             bbox_targets[pos_inds] = pos_bbox_targets
             bbox_weights[pos_inds, :] = 1.0
 
             labels[pos_inds] = sampling_result.pos_gt_labels
-            if self.train_cfg['pos_weight'] <= 0:
+            if self.train_cfg["pos_weight"] <= 0:
                 label_weights[pos_inds] = 1.0
             else:
-                label_weights[pos_inds] = self.train_cfg['pos_weight']
+                label_weights[pos_inds] = self.train_cfg["pos_weight"]
         if len(neg_inds) > 0:
             label_weights[neg_inds] = 1.0
 
@@ -295,22 +341,32 @@ class RotatedATSSHead(ATSSHead):
             num_total_anchors = flat_anchors.size(0)
             anchors = unmap(anchors.tensor, num_total_anchors, inside_flags)
             labels = unmap(
-                labels, num_total_anchors, inside_flags, fill=self.num_classes)
-            label_weights = unmap(label_weights, num_total_anchors,
-                                  inside_flags)
+                labels, num_total_anchors, inside_flags, fill=self.num_classes
+            )
+            label_weights = unmap(label_weights, num_total_anchors, inside_flags)
             bbox_targets = unmap(bbox_targets, num_total_anchors, inside_flags)
             bbox_weights = unmap(bbox_weights, num_total_anchors, inside_flags)
 
-        return (anchors, labels, label_weights, bbox_targets, bbox_weights,
-                pos_inds, neg_inds, sampling_result)
+        return (
+            anchors,
+            labels,
+            label_weights,
+            bbox_targets,
+            bbox_weights,
+            pos_inds,
+            neg_inds,
+            sampling_result,
+        )
 
-    def get_targets(self,
-                    anchor_list: List[List[Tensor]],
-                    valid_flag_list: List[List[Tensor]],
-                    batch_gt_instances: InstanceList,
-                    batch_img_metas: List[dict],
-                    batch_gt_instances_ignore: OptInstanceList = None,
-                    unmap_outputs: bool = True) -> tuple:
+    def get_targets(
+        self,
+        anchor_list: List[List[Tensor]],
+        valid_flag_list: List[List[Tensor]],
+        batch_gt_instances: InstanceList,
+        batch_img_metas: List[dict],
+        batch_gt_instances_ignore: OptInstanceList = None,
+        unmap_outputs: bool = True,
+    ) -> tuple:
         """Get targets for ATSS head.
 
         This method is almost the same as `AnchorHead.get_targets()`. Besides
@@ -333,31 +389,41 @@ class RotatedATSSHead(ATSSHead):
         # compute targets for each image
         if batch_gt_instances_ignore is None:
             batch_gt_instances_ignore = [None] * num_imgs
-        (all_anchors, all_labels, all_label_weights, all_bbox_targets,
-         all_bbox_weights, pos_inds_list, neg_inds_list,
-         sampling_results_list) = multi_apply(
-             self._get_targets_single,
-             anchor_list,
-             valid_flag_list,
-             num_level_anchors_list,
-             batch_gt_instances,
-             batch_img_metas,
-             batch_gt_instances_ignore,
-             unmap_outputs=unmap_outputs)
+        (
+            all_anchors,
+            all_labels,
+            all_label_weights,
+            all_bbox_targets,
+            all_bbox_weights,
+            pos_inds_list,
+            neg_inds_list,
+            sampling_results_list,
+        ) = multi_apply(
+            self._get_targets_single,
+            anchor_list,
+            valid_flag_list,
+            num_level_anchors_list,
+            batch_gt_instances,
+            batch_img_metas,
+            batch_gt_instances_ignore,
+            unmap_outputs=unmap_outputs,
+        )
         # Get `avg_factor` of all images, which calculate in `SamplingResult`.
         # When using sampling method, avg_factor is usually the sum of
         # positive and negative priors. When using `PseudoSampler`,
         # `avg_factor` is usually equal to the number of positive priors.
-        avg_factor = sum(
-            [results.avg_factor for results in sampling_results_list])
+        avg_factor = sum([results.avg_factor for results in sampling_results_list])
         # split targets to a list w.r.t. multiple levels
         anchors_list = images_to_levels(all_anchors, num_level_anchors)
         labels_list = images_to_levels(all_labels, num_level_anchors)
-        label_weights_list = images_to_levels(all_label_weights,
-                                              num_level_anchors)
-        bbox_targets_list = images_to_levels(all_bbox_targets,
-                                             num_level_anchors)
-        bbox_weights_list = images_to_levels(all_bbox_weights,
-                                             num_level_anchors)
-        return (anchors_list, labels_list, label_weights_list,
-                bbox_targets_list, bbox_weights_list, avg_factor)
+        label_weights_list = images_to_levels(all_label_weights, num_level_anchors)
+        bbox_targets_list = images_to_levels(all_bbox_targets, num_level_anchors)
+        bbox_weights_list = images_to_levels(all_bbox_weights, num_level_anchors)
+        return (
+            anchors_list,
+            labels_list,
+            label_weights_list,
+            bbox_targets_list,
+            bbox_weights_list,
+            avg_factor,
+        )

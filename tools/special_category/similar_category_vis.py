@@ -33,10 +33,11 @@ def plot_similar_category_vis(
     """
     以45°为区分线，回归两个类别的图
     """
-    x = result.iloc[:, 3]
-    y = result.iloc[:, 5]
+    # x = result.iloc[:, 3]
+    # y = result.iloc[:, 5]
+    # result = scores_pd
 
-    similar = result.iloc[:, [2, 7]].copy()
+    similar = result.iloc[:, [3, 5]].copy()
     similar["label"] = similar.apply(
         lambda row: category_x if row.iloc[0] > row.iloc[1] else category_y, axis=1
     )
@@ -92,20 +93,19 @@ def plot_similar_category_vis(
     fig_name = "tools/special_category/" + network + "_scale_" + scale + ".png"
 
     plt.title(title)
-    # plt.savefig("tools/special_category/s2anet_scale_1.png",bbox_inches='tight')
     plt.savefig(fig_name, dpi=400, bbox_inches="tight")
     plt.show()
 
 
 if __name__ == "__main__":
-    scores_path = "/home/odysseus/pyFiles/mmrotate1x/tools/special_category/s2anet_refine_scores_scale_1.csv"
-    idx_path = "/home/odysseus/pyFiles/mmrotate1x/tools/special_category/s2anet_refine_idx_scale_1.csv"
-    category_x = "small_vehicle"
-    category_y = "swimming_pool"
-    network = "S2ANet"
-    scale = "1"
-    multiple_locator = 0.1
-    lim = 1
+    scores_path = "/home/odysseus/pyFiles/mmrotate1x/tools/special_category/retina_sca_scores_scale_2.csv"
+    idx_path = "/home/odysseus/pyFiles/mmrotate1x/tools/special_category/retina_sca_idx_scale_2.csv"
+    category_x = "large_vehicle"
+    category_y = "container"
+    network = "R-RetinaNet (+SCA)"
+    scale = "2"
+    multiple_locator = 0.01
+    lim = 0.1
 
     plot_similar_category_vis(
         scores_path,
@@ -138,6 +138,13 @@ R3Det:
     Scale-3: MultipleLocater-0.01875, xlim-0.1875
 
 S2ANet:
+    Scale-1: MultipleLocater-0.1, xlim-1
+    Scale-2: MultipleLocater-0.08, xlim-0.8
+    
+Oriented RCNN:
+    MultipleLocater-0.1, xlim-1
+
+ATSS:
     Scale-1: MultipleLocater-0.1, xlim-1
     Scale-2: MultipleLocater-0.08, xlim-0.8
 """

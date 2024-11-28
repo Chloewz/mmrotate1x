@@ -11,7 +11,12 @@ from torch import Tensor
 from mmengine.config import ConfigDict
 
 from mmdet.structures.bbox import cat_boxes, get_box_tensor
-from mmdet.models.utils import images_to_levels, multi_apply, filter_scores_and_topk, select_single_mlvl
+from mmdet.models.utils import (
+    images_to_levels,
+    multi_apply,
+    filter_scores_and_topk,
+    select_single_mlvl,
+)
 from typing import List, Optional
 from mmdet.utils import InstanceList, OptInstanceList, ConfigType
 import copy
@@ -61,7 +66,7 @@ class RetinaAngleHead(AnchorHead):
             std=0.01,
             override=dict(type="Normal", name="retina_cls", std=0.01, bias_prob=0.01),
         ),
-        loss_angle: ConfigType=dict(type='SCALoss'),
+        loss_angle: ConfigType = dict(type="SCALoss"),
         **kwargs,
     ):
         assert stacked_convs >= 0, (
@@ -141,7 +146,8 @@ class RetinaAngleHead(AnchorHead):
         cls_score = self.retina_cls(cls_feat)
         bbox_pred = self.retina_reg(reg_feat)
 
-        if cls_score.size(2) == 128:
+        # TODO: 这里只对最底层的特征图进行了sca的计算与损失，但是其他层级的特征也会对分类产生影响，是否全用有待商榷
+        if cls_score.size(2) == 128:    # 只对最底层的特征图做sca的计算与损失计算
             sca = self.sca_regress(cls_score)
         else:
             sca = 0.0
@@ -272,7 +278,7 @@ class RetinaAngleHead(AnchorHead):
             concat_anchor_list.append(cat_boxes(anchor_list[i]))
         all_anchor_list = images_to_levels(concat_anchor_list, num_level_anchors)
 
-        losses_cls, losses_bbox, loss_angle= multi_apply(
+        losses_cls, losses_bbox, loss_angle = multi_apply(
             self.loss_by_feat_single,
             cls_scores,
             bbox_preds,
@@ -286,15 +292,17 @@ class RetinaAngleHead(AnchorHead):
         )
         return dict(loss_cls=losses_cls, loss_bbox=losses_bbox, loss_angle=loss_angle)
 
-    def predict_by_feat(self,
-                        cls_scores: List[Tensor],
-                        bbox_preds: List[Tensor],
-                        sca: float,
-                        score_factors: Optional[List[Tensor]] = None,
-                        batch_img_metas: Optional[List[dict]] = None,
-                        cfg: Optional[ConfigDict] = None,
-                        rescale: bool = False,
-                        with_nms: bool = True) -> InstanceList:
+    def predict_by_feat(
+        self,
+        cls_scores: List[Tensor],
+        bbox_preds: List[Tensor],
+        sca: float,
+        score_factors: Optional[List[Tensor]] = None,
+        batch_img_metas: Optional[List[dict]] = None,
+        cfg: Optional[ConfigDict] = None,
+        rescale: bool = False,
+        with_nms: bool = True,
+    ) -> InstanceList:
         """Transform a batch of output features extracted from the head into
         bbox results.
 
@@ -347,22 +355,20 @@ class RetinaAngleHead(AnchorHead):
 
         featmap_sizes = [cls_scores[i].shape[-2:] for i in range(num_levels)]
         mlvl_priors = self.prior_generator.grid_priors(
-            featmap_sizes,
-            dtype=cls_scores[0].dtype,
-            device=cls_scores[0].device)
+            featmap_sizes, dtype=cls_scores[0].dtype, device=cls_scores[0].device
+        )
 
         result_list = []
 
         for img_id in range(len(batch_img_metas)):
             img_meta = batch_img_metas[img_id]
-            cls_score_list = select_single_mlvl(
-                cls_scores, img_id, detach=True)
-            bbox_pred_list = select_single_mlvl(
-                bbox_preds, img_id, detach=True)
+            cls_score_list = select_single_mlvl(cls_scores, img_id, detach=True)
+            bbox_pred_list = select_single_mlvl(bbox_preds, img_id, detach=True)
             # sca_list = select_single_mlvl(sca, img_id, detach=True)
             if with_score_factors:
                 score_factor_list = select_single_mlvl(
-                    score_factors, img_id, detach=True)
+                    score_factors, img_id, detach=True
+                )
             else:
                 score_factor_list = [None for _ in range(num_levels)]
 
@@ -375,20 +381,23 @@ class RetinaAngleHead(AnchorHead):
                 img_meta=img_meta,
                 cfg=cfg,
                 rescale=rescale,
-                with_nms=with_nms)
+                with_nms=with_nms,
+            )
             result_list.append(results)
         return result_list
 
-    def _predict_by_feat_single(self,
-                                cls_score_list: List[Tensor],
-                                bbox_pred_list: List[Tensor],
-                                sca_list: List[Tensor],
-                                score_factor_list: List[Tensor],
-                                mlvl_priors: List[Tensor],
-                                img_meta: dict,
-                                cfg: ConfigDict,
-                                rescale: bool = False,
-                                with_nms: bool = True) -> InstanceData:
+    def _predict_by_feat_single(
+        self,
+        cls_score_list: List[Tensor],
+        bbox_pred_list: List[Tensor],
+        sca_list: List[Tensor],
+        score_factor_list: List[Tensor],
+        mlvl_priors: List[Tensor],
+        img_meta: dict,
+        cfg: ConfigDict,
+        rescale: bool = False,
+        with_nms: bool = True,
+    ) -> InstanceData:
         """Transform a single image's features extracted from the head into
         bbox results.
 
@@ -437,8 +446,8 @@ class RetinaAngleHead(AnchorHead):
 
         cfg = self.test_cfg if cfg is None else cfg
         cfg = copy.deepcopy(cfg)
-        img_shape = img_meta['img_shape']
-        nms_pre = cfg.get('nms_pre', -1)
+        img_shape = img_meta["img_shape"]
+        nms_pre = cfg.get("nms_pre", -1)
 
         mlvl_bbox_preds = []
         mlvl_valid_priors = []
@@ -449,19 +458,19 @@ class RetinaAngleHead(AnchorHead):
             mlvl_score_factors = []
         else:
             mlvl_score_factors = None
-        for level_idx, (cls_score, bbox_pred, sca, score_factor, priors) in \
-                enumerate(zip(cls_score_list, bbox_pred_list, sca_list,
-                              score_factor_list, mlvl_priors)):
+        for level_idx, (cls_score, bbox_pred, sca, score_factor, priors) in enumerate(
+            zip(
+                cls_score_list, bbox_pred_list, sca_list, score_factor_list, mlvl_priors
+            )
+        ):
 
             assert cls_score.size()[-2:] == bbox_pred.size()[-2:]
 
             dim = self.bbox_coder.encode_size
             bbox_pred = bbox_pred.permute(1, 2, 0).reshape(-1, dim)
             if with_score_factors:
-                score_factor = score_factor.permute(1, 2,
-                                                    0).reshape(-1).sigmoid()
-            cls_score = cls_score.permute(1, 2,
-                                          0).reshape(-1, self.cls_out_channels)
+                score_factor = score_factor.permute(1, 2, 0).reshape(-1).sigmoid()
+            cls_score = cls_score.permute(1, 2, 0).reshape(-1, self.cls_out_channels)
             if self.use_sigmoid_cls:
                 scores = cls_score.sigmoid()
             else:
@@ -475,15 +484,15 @@ class RetinaAngleHead(AnchorHead):
             # There is no difference in performance for most models. If you
             # find a slight drop in performance, you can set a larger
             # `nms_pre` than before.
-            score_thr = cfg.get('score_thr', 0)
+            score_thr = cfg.get("score_thr", 0)
 
             results = filter_scores_and_topk(
-                scores, score_thr, nms_pre,
-                dict(bbox_pred=bbox_pred, priors=priors))
+                scores, score_thr, nms_pre, dict(bbox_pred=bbox_pred, priors=priors)
+            )
             scores, labels, keep_idxs, filtered_results = results
 
-            bbox_pred = filtered_results['bbox_pred']
-            priors = filtered_results['priors']
+            bbox_pred = filtered_results["bbox_pred"]
+            priors = filtered_results["priors"]
 
             if with_score_factors:
                 score_factor = score_factor[keep_idxs]
@@ -506,7 +515,7 @@ class RetinaAngleHead(AnchorHead):
         results.bboxes = bboxes
         results.scores = torch.cat(mlvl_scores)
         results.labels = torch.cat(mlvl_labels)
-        results.sca = torch.tensor(mlvl_scas[0])
+        # results.sca = torch.tensor(mlvl_scas[0])
         if with_score_factors:
             results.score_factors = torch.cat(mlvl_score_factors)
 
@@ -517,7 +526,8 @@ class RetinaAngleHead(AnchorHead):
             cfg=cfg,
             rescale=rescale,
             with_nms=with_nms,
-            img_meta=img_meta)
+            img_meta=img_meta,
+        )
 
 
 class SimilarCategoryAngleRegression(nn.Module):
@@ -526,14 +536,20 @@ class SimilarCategoryAngleRegression(nn.Module):
         self.num_classes = num_classes
 
     def forward(self, cls_score):
-        cls_score_angle = cls_score.permute(0, 2, 3, 1).contiguous()
+        # cls_score shape: (1,81,128,128)
+        cls_score_angle = cls_score.permute(
+            0, 2, 3, 1
+        ).contiguous()  # cls_score_angle shape: (1,128,128,81)
         cls_score_angle = cls_score_angle.view(
             cls_score_angle.size(0), -1, self.num_classes
-        )
-        scores = cls_score_angle.sigmoid()
-        scores_mean = scores.mean(dim=0)
+        )  # cls_score_angle shape: (1,147456,9) 1 is batchsize
+        scores = cls_score_angle.sigmoid()  # scores shape: (1,147456,9)
+        # TODO: 这里的取mean操作，把整个batch的所有特征图都参与进了计算中，可能会导致所有类别的dets都有变化，是否做修改再思考
+        scores_mean = scores.mean(dim=0)  # scores_mean shape: (147456,9)
 
-        keep_idxs = self.filte_scores(scores_mean, 0.05, 2000)
+        keep_idxs = self.filte_scores(
+            scores_mean, 0.05, 2000
+        )  # keep_idxs shape: (2000,)
         if keep_idxs.size(0) != 0:
             keep_idxs = torch.unique(keep_idxs)
             scores_mean = scores_mean[keep_idxs]
@@ -556,7 +572,10 @@ class SimilarCategoryAngleRegression(nn.Module):
                 slope_x, _, _, _, _ = linregress(similar_x[:, 0], similar_x[:, 1])
                 slope_y, _, _, _, _ = linregress(similar_y[:, 0], similar_y[:, 1])
 
-                angle = np.arctan(np.abs((slope_y - slope_x) / (1 + slope_y * slope_x)))
+                TINY = 1e-5
+                angle = np.arctan(
+                    np.abs((slope_y - slope_x) / (1 + slope_y * slope_x + TINY))
+                )
                 sca = np.degrees(angle)
             else:
                 sca = 0.0
@@ -565,13 +584,14 @@ class SimilarCategoryAngleRegression(nn.Module):
         return sca
 
     def filte_scores(self, scores, scores_threshold, topk):
-        valid_mask = scores > scores_threshold
+        # scores shape:(147456,9)
+        valid_mask = scores > scores_threshold  # valid_mask shape:(147456,9)
         scores = scores[valid_mask]
         valid_idxs = torch.nonzero(valid_mask)
 
         num_topk = min(topk, valid_idxs.size(0))
         scores, idxs = scores.sort(descending=True)
         topk_idx = valid_idxs[idxs[:num_topk]]
-        keep_idxs, labels = topk_idx.unbind(dim=1)
+        keep_idxs, labels = topk_idx.unbind(dim=1)  # keep_idxs shape (2000,)
 
         return keep_idxs

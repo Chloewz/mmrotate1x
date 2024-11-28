@@ -20,10 +20,10 @@ class SCALoss(nn.Module):
         self,
         sca
     ):
-        if sca != 0:
+        if 0.0 < sca <= 90.0:
             sca = torch.tensor(sca, dtype=torch.float32)
             sca = torch.deg2rad(sca)
-            loss_angle = torch.cos(sca)
+            loss_angle = torch.cos(sca) / torch.sin(sca)
         else:
             sca = torch.tensor(sca, dtype=torch.float32)
             loss_angle = torch.tensor(0.0)

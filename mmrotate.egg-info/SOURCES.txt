@@ -34,6 +34,7 @@ mmrotate/evaluation/metrics/sodaa_metric.py
 mmrotate/models/__init__.py
 mmrotate/models/backbones/__init__.py
 mmrotate/models/backbones/re_resnet.py
+mmrotate/models/backbones/resnet_featmap.py
 mmrotate/models/dense_heads/__init__.py
 mmrotate/models/dense_heads/angle_branch_retina_head.py
 mmrotate/models/dense_heads/cfa_head.py
@@ -50,6 +51,8 @@ mmrotate/models/dense_heads/rotated_reppoints_head.py
 mmrotate/models/dense_heads/rotated_retina_head.py
 mmrotate/models/dense_heads/rotated_rtmdet_head.py
 mmrotate/models/dense_heads/s2a_head.py
+mmrotate/models/dense_heads/s2a_init_head_featmap.py
+mmrotate/models/dense_heads/s2a_refine_head_featmap.py
 mmrotate/models/dense_heads/sam_reppoints_head.py
 mmrotate/models/detectors/__init__.py
 mmrotate/models/detectors/epison_hot_single_stage.py
@@ -72,6 +75,7 @@ mmrotate/models/losses/sca_loss.py
 mmrotate/models/losses/smooth_focal_loss.py
 mmrotate/models/losses/spatial_border_loss.py
 mmrotate/models/necks/__init__.py
+mmrotate/models/necks/fpn_featmap.py
 mmrotate/models/necks/re_fpn.py
 mmrotate/models/roi_heads/__init__.py
 mmrotate/models/roi_heads/gv_ratio_roi_head.py

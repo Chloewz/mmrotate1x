@@ -8,11 +8,6 @@ default_hooks = dict(
     sampler_seed=dict(type='DistSamplerSeedHook'),
     visualization=dict(type='mmdet.DetVisualizationHook'))
 
-custom_hooks = [dict(
-    type='mmdet.FeatureMapHook',
-    save_dir='/mnt/d/exp/sodaa_sob/a6000result/0924_baseline/test/featuremap/',
-)]
-
 env_cfg = dict(
     cudnn_benchmark=False,
     mp_cfg=dict(mp_start_method='fork', opencv_num_threads=0),

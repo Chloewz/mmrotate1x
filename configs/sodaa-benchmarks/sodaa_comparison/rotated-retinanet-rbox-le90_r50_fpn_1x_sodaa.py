@@ -1,6 +1,6 @@
 _base_ = [
     '../../_base_/datasets/sodaa_dota.py', '../../_base_/schedules/schedule_1x.py',
-    '../../_base_/default_runtime_featmap.py'
+    '../../_base_/default_runtime.py'
 ]
 angle_version = 'le90'
 
@@ -24,7 +24,7 @@ model = dict(
         style='pytorch',
         init_cfg=dict(type='Pretrained', checkpoint='torchvision://resnet50')),
     neck=dict(
-        type='FPNFeatureMap',
+        type='mmdet.FPN',
         in_channels=[256, 512, 1024, 2048],
         out_channels=256,
         start_level=1,

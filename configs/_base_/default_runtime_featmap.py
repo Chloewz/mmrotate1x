@@ -8,6 +8,12 @@ default_hooks = dict(
     sampler_seed=dict(type='DistSamplerSeedHook'),
     visualization=dict(type='mmdet.DetVisualizationHook'))
 
+custom_hooks = [dict(
+    type='mmdet.FeatureMapHook',
+    save_dir='/mnt/d/exp/sodaa_sob/a6000result/1107_retinanet/test/featuremap/',
+    # layer_names=["neck.fpn_convs.4.conv"],
+)]
+
 env_cfg = dict(
     cudnn_benchmark=False,
     mp_cfg=dict(mp_start_method='fork', opencv_num_threads=0),

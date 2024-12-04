@@ -70,3 +70,33 @@ python tools/test.py
 5. 修改测试设置*test.py*，完成在测试的同时输出Feature Map
 
 # 2 Feature Map可视化
+## 2.1 FeatureMap由npy文件转为png格式可视化
+使用*tools/feature_map_vis/feature_map_vis.py*代码能够完成Feature Map的可视化。具体的操作流程如下：
+
+1. 把从1步骤中生成的Feature Map汇总到一个文件夹下面，可以由不同的子文件夹组成，如：
+```
+s2anet_feature_map
+|
+|___backbone.resnet
+|   |___batch_0_layer_0.npy
+|   |___batch_0_layer_1.npy
+|   |___batch_0_layer_2.npy
+|   |___batch_0_layer_3.npy
+|   |___batch_0_layer_4.npy
+|___bbox_head_init.s2anet_init.bbox_preds
+|   | ... 
+|___bbox_head_init.s2anet_init.cls_scores
+|   | ... 
+|___bbox_head_refine.s2anet_refine.bbox_preds
+|   | ... 
+|___bbox_head_refine.s2anet_refine.cls_scores
+|   | ... 
+|___neck.fpn
+|   | ... 
+```
+
+2. 随后将*feature_map_vis.py*中的*folder_path*参数修改为该文件夹路径"../s2anet_feature_map/"，执行该函数，即可完成该函数的功能，遍历该文件夹下面的所有子文件夹，并完成这些文件夹下面的npy格式Feature Map可视化
+
+# 3 Heat Map可视化
+## 3.1 由Feature Map计算Heat Map并可视化
+使用*tools/feature_map_vis/heat_map_from_featmap.py*完成Feature Map到Heat Map的计算。具体的实现细节就是归一化后可视化。运行该代码也很简单，和2一样，将*Heat_map_from_featmap.py*中的*folder_path*参数修改为同样的文件夹路径"../s2anet_feature_map/"即可。执行该函数，即可完成该函数的功能，遍历该文件夹下面的所有子文件夹，并完成由Feature Map到Heat Map的计算与可视化。

@@ -1,7 +1,7 @@
 {
   "nproc": 10,
   "img_dirs": [
-    "data/DOTA/test/images/"
+    "/mnt/d/exp/hrsc_gf2/original_jpg/"
   ],
   "ann_dirs": null,
   "sizes": [
@@ -21,6 +21,6 @@
     116,
     124
   ],
-  "save_dir": "data/split_ss_dota/test/",
-  "save_ext": ".png"
+  "save_dir": "/mnt/d/exp/hrsc_gf2/crop_dota/",
+  "save_ext": ".jpg"
 }

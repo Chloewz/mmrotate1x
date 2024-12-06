@@ -5,8 +5,9 @@ from .dota import DOTADataset, DOTAv15Dataset
 from .hrsc import HRSCDataset  # noqa: F401, F403
 from .transforms import *  # noqa: F401, F403
 from .soda_dota_fix import SODAA_DOTADataset
+from .hrsc_dota import HRSCDOTADataset
 
 __all__ = [
     'DOTADataset', 'DOTAv15Dataset', 'DOTAv2Dataset', 'HRSCDataset',
-    'DIORDataset', 'SODAA_DOTADataset'
+    'DIORDataset', 'SODAA_DOTADataset', 'HRSCDOTADataset'
 ]

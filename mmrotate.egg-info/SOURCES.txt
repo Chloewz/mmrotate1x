@@ -18,6 +18,7 @@ mmrotate/datasets/__init__.py
 mmrotate/datasets/dior.py
 mmrotate/datasets/dota.py
 mmrotate/datasets/hrsc.py
+mmrotate/datasets/hrsc_dota.py
 mmrotate/datasets/soda_dota_fix.py
 mmrotate/datasets/sodaa_dota.py
 mmrotate/datasets/transforms/__init__.py

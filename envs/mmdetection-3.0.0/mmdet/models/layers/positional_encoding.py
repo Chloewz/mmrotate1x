@@ -14,6 +14,11 @@ from mmdet.utils import MultiConfig, OptMultiConfig
 class SinePositionalEncoding(BaseModule):
     """Position encoding with sine and cosine functions.
 
+    基于正弦和余弦函数实现的位置编码类，为输入数据引入位置信息
+    用于实现生成二维空间位置的嵌入特征
+    正弦-余弦编码方式确保了模型对位置的感知能够捕捉到规律性、周期性的信息，
+    尤其适用于序列或图像任务中的空间特征编码
+
     See `End-to-End Object Detection with Transformers
     <https://arxiv.org/pdf/2005.12872>`_ for details.
 
@@ -36,19 +41,23 @@ class SinePositionalEncoding(BaseModule):
             Defaults to None
     """
 
-    def __init__(self,
-                 num_feats: int,
-                 temperature: int = 10000,
-                 normalize: bool = False,
-                 scale: float = 2 * math.pi,
-                 eps: float = 1e-6,
-                 offset: float = 0.,
-                 init_cfg: OptMultiConfig = None) -> None:
+    def __init__(
+        self,
+        num_feats: int,
+        temperature: int = 10000,
+        normalize: bool = False,
+        scale: float = 2 * math.pi,
+        eps: float = 1e-6,
+        offset: float = 0.0,
+        init_cfg: OptMultiConfig = None,
+    ) -> None:
         super().__init__(init_cfg=init_cfg)
         if normalize:
-            assert isinstance(scale, (float, int)), 'when normalize is set,' \
-                'scale should be provided and in float or int type, ' \
-                f'found {type(scale)}'
+            assert isinstance(scale, (float, int)), (
+                "when normalize is set,"
+                "scale should be provided and in float or int type, "
+                f"found {type(scale)}"
+            )
         self.num_feats = num_feats
         self.temperature = temperature
         self.normalize = normalize
@@ -71,38 +80,48 @@ class SinePositionalEncoding(BaseModule):
         # For convenience of exporting to ONNX, it's required to convert
         # `masks` from bool to int.
         mask = mask.to(torch.int)
-        not_mask = 1 - mask  # logical_not
+        not_mask = 1 - mask  # logical_not， 有效位置为1，其他为0
+
+        # 累加计算有效位置的索引（相对坐标索引）
         y_embed = not_mask.cumsum(1, dtype=torch.float32)
+        # * cumsum的功能是返回给定axis上的累计和
         x_embed = not_mask.cumsum(2, dtype=torch.float32)
         if self.normalize:
-            y_embed = (y_embed + self.offset) / \
-                      (y_embed[:, -1:, :] + self.eps) * self.scale
-            x_embed = (x_embed + self.offset) / \
-                      (x_embed[:, :, -1:] + self.eps) * self.scale
-        dim_t = torch.arange(
-            self.num_feats, dtype=torch.float32, device=mask.device)
-        dim_t = self.temperature**(2 * (dim_t // 2) / self.num_feats)
-        pos_x = x_embed[:, :, :, None] / dim_t
-        pos_y = y_embed[:, :, :, None] / dim_t
+            y_embed = (
+                (y_embed + self.offset) / (y_embed[:, -1:, :] + self.eps) * self.scale
+            )   # * y_embed[:,-1:,:]获取了在高度维度上的最后一行，同时保留维度结构
+            # 即每个图像最后一行的累加值，这个值是y方向的总步长或累计的最大值。
+            # 用它作为分母对整个y_embed张量进行归一化，使得位置编码在y维度归一化到一个固定范围
+            x_embed = (
+                (x_embed + self.offset) / (x_embed[:, :, -1:] + self.eps) * self.scale
+            )
+        
+        # 生成编码维度缩放因子dim_t
+        dim_t = torch.arange(self.num_feats, dtype=torch.float32, device=mask.device)
+        # * torch.arange用于生成一维张量的函数，该张量包括从起始值到结束值的等差数列，步长为step。此处是0到#feats，步长为1
+        dim_t = self.temperature ** (2 * (dim_t // 2) / self.num_feats)
+        pos_x = x_embed[:, :, :, None] / dim_t  # [:,:,:,None]为添加额外维度，方便后续广播
+        pos_y = y_embed[:, :, :, None] / dim_t  # 广播dim_t到形状[B,H,W,#feats]，实现不同维度的频率缩放
         # use `view` instead of `flatten` for dynamically exporting to ONNX
         B, H, W = mask.size()
+        # 计算正余弦编码，对x_embed和y_embed分别按照奇偶维度计算正弦和余弦函数的编码
         pos_x = torch.stack(
-            (pos_x[:, :, :, 0::2].sin(), pos_x[:, :, :, 1::2].cos()),
-            dim=4).view(B, H, W, -1)
+            (pos_x[:, :, :, 0::2].sin(), pos_x[:, :, :, 1::2].cos()), dim=4
+        ).view(B, H, W, -1) # * 0::2提取偶数索引维度(如[0,2,4,...])，1::2提取奇数索引维度(如[1,3,5,...])
         pos_y = torch.stack(
-            (pos_y[:, :, :, 0::2].sin(), pos_y[:, :, :, 1::2].cos()),
-            dim=4).view(B, H, W, -1)
+            (pos_y[:, :, :, 0::2].sin(), pos_y[:, :, :, 1::2].cos()), dim=4
+        ).view(B, H, W, -1)
         pos = torch.cat((pos_y, pos_x), dim=3).permute(0, 3, 1, 2)
-        return pos
+        return pos  # pos的形状为[B,C,H,W], 其中C=2*#feats
 
     def __repr__(self) -> str:
         """str: a string that describes the module"""
         repr_str = self.__class__.__name__
-        repr_str += f'(num_feats={self.num_feats}, '
-        repr_str += f'temperature={self.temperature}, '
-        repr_str += f'normalize={self.normalize}, '
-        repr_str += f'scale={self.scale}, '
-        repr_str += f'eps={self.eps})'
+        repr_str += f"(num_feats={self.num_feats}, "
+        repr_str += f"temperature={self.temperature}, "
+        repr_str += f"normalize={self.normalize}, "
+        repr_str += f"scale={self.scale}, "
+        repr_str += f"eps={self.eps})"
         return repr_str
 
 
@@ -126,7 +145,7 @@ class LearnedPositionalEncoding(BaseModule):
         num_feats: int,
         row_num_embed: int = 50,
         col_num_embed: int = 50,
-        init_cfg: MultiConfig = dict(type='Uniform', layer='Embedding')
+        init_cfg: MultiConfig = dict(type="Uniform", layer="Embedding"),
     ) -> None:
         super().__init__(init_cfg=init_cfg)
         self.row_embed = nn.Embedding(row_num_embed, num_feats)
@@ -152,17 +171,24 @@ class LearnedPositionalEncoding(BaseModule):
         y = torch.arange(h, device=mask.device)
         x_embed = self.col_embed(x)
         y_embed = self.row_embed(y)
-        pos = torch.cat(
-            (x_embed.unsqueeze(0).repeat(h, 1, 1), y_embed.unsqueeze(1).repeat(
-                1, w, 1)),
-            dim=-1).permute(2, 0,
-                            1).unsqueeze(0).repeat(mask.shape[0], 1, 1, 1)
+        pos = (
+            torch.cat(
+                (
+                    x_embed.unsqueeze(0).repeat(h, 1, 1),
+                    y_embed.unsqueeze(1).repeat(1, w, 1),
+                ),
+                dim=-1,
+            )
+            .permute(2, 0, 1)
+            .unsqueeze(0)
+            .repeat(mask.shape[0], 1, 1, 1)
+        )
         return pos
 
     def __repr__(self) -> str:
         """str: a string that describes the module"""
         repr_str = self.__class__.__name__
-        repr_str += f'(num_feats={self.num_feats}, '
-        repr_str += f'row_num_embed={self.row_num_embed}, '
-        repr_str += f'col_num_embed={self.col_num_embed})'
+        repr_str += f"(num_feats={self.num_feats}, "
+        repr_str += f"row_num_embed={self.row_num_embed}, "
+        repr_str += f"col_num_embed={self.col_num_embed})"
         return repr_str
